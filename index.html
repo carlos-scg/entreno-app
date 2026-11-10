@@ -17,7 +17,7 @@
 /* Layout: cabecera fija arriba, contenido en una columna (máx. 760px), barra de pestañas fija abajo como en una app nativa. */
 :root{
   --bg:#F2F4F8;--surface:#FFFFFF;--ink:#141B2B;--muted:#5A6477;--line:#DAE0E9;
-  --accent:#1F4FD8;--accent-ink:#FFFFFF;--accent-soft:#E5ECFC;
+  --accent:#1F4FD8;--accent-ink:#FFFFFF;--accent-soft:#E5ECFC;--fig:#CFD8E6;
   --up:#0F7B4F;--warn:#9A5B06;--warn-soft:#FCF1DC;--danger:#B42318;
   --display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;
   --body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Arial,sans-serif;
@@ -25,7 +25,7 @@
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0E131C;--surface:#171E2B;--ink:#E9EDF5;--muted:#9AA5B8;--line:#2A3445;
-  --accent:#7C9BFF;--accent-ink:#0B1020;--accent-soft:#1C2848;
+  --accent:#7C9BFF;--accent-ink:#0B1020;--accent-soft:#1C2848;--fig:#46536B;
   --up:#4ADE9A;--warn:#F5B556;--warn-soft:#33270F;--danger:#FF8A7A;}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -111,6 +111,23 @@ td.wrapcell{white-space:normal;min-width:10rem}
 .diet{white-space:pre-wrap;word-wrap:break-word;line-height:1.6}
 .help{font-size:13.5px;color:var(--muted);background:var(--bg);border-radius:10px;padding:10px 12px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px);text-align:center}
+/* Guía de medidas: figura a la izquierda, instrucciones a la derecha (apiladas en móvil estrecho). */
+.guia{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:16px;align-items:start;margin-top:10px}
+.guia .fig{width:100%;max-width:230px;height:auto;display:block}
+.guia ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.guia li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:start;padding:10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;text-align:left}
+.guia li.on{background:var(--accent-soft);border-color:var(--accent)}
+.guia li .nb{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
+.guia li b{display:block;font-size:15px}.guia li span.tx{display:block;color:var(--muted);font-size:14px}
+.zona .l{stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;fill:none}
+.zona .g{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:3 3;fill:none}
+.zona .b{fill:var(--accent)}
+.zona .t{fill:var(--accent-ink);font:800 12px var(--body);text-anchor:middle}
+.zona.on .l{stroke-width:6}
+.zona.on .b{transform:scale(1.25);transform-box:fill-box;transform-origin:center}
+.fig.hay .zona:not(.on){opacity:.3}
+.fig .cuerpo{fill:var(--fig)}.fig .miembro{stroke:var(--fig);fill:none;stroke-linecap:round}
+@media (max-width:520px){.guia{grid-template-columns:1fr;justify-items:center}.guia ol{width:100%}}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -135,7 +152,7 @@ var DEF_METRICAS=[
 ];
 var AYUDA_RUTINA="# Nombre de la rutina\n\n## Día 1 · Empuje\nPress banca | 4 | 6-8 | 2 min\nPress militar | 3 | 8-10 | 90 s | Con mancuernas\n\n## Día 2 · Tirón\nDominadas | 4 | 6-10 | 2 min";
 var idb=null,S={rutinas:[],sesiones:{},mediciones:{},metricas:DEF_METRICAS,dieta:"",dietaArchivo:null};
-var UI={tab:"actual",dia:0,fecha:hoy(),drafts:{},metrica:null,confirm:null,editor:null,dietaEd:null,nuevaMedida:false,
+var UI={tab:"actual",guia:null,zona:null,dia:0,fecha:hoy(),drafts:{},metrica:null,confirm:null,editor:null,dietaEd:null,nuevaMedida:false,
   med:{fecha:hoy(),valores:{},notas:"",fotos:[],quitadas:[],key:null,dirty:false}};
 var view=document.getElementById("view"),urls={},busy=false,toastTimer=null,memoria=false;
 
@@ -490,6 +507,41 @@ function importar(file){
   }).then(guardar).then(function(){UI.drafts={};toast("Copia restaurada");},fallo("Ese archivo no es una copia válida.")).then(function(){busy=false;render();});
 }
 
+/* ---------- guía visual de medidas ---------- */
+var GUIA=[
+  {k:"brazo",n:"Brazo",t:"Con el brazo relajado a lo largo del cuerpo, pon la cinta en el punto medio entre el hombro y el codo, sin apretar. Mide siempre el mismo brazo.",
+   svg:'<line class="l" x1="177.9" y1="141.4" x2="198.7" y2="134.2"/><line class="g" x1="198.7" y1="134.2" x2="216" y2="134"/><circle class="b" cx="226" cy="134" r="10"/><text class="t" x="226" y="138">1</text>'},
+  {k:"pecho",n:"Pecho",t:"Rodea el pecho con la cinta a la altura de los pezones, horizontal por la espalda, con los brazos relajados y después de soltar el aire con normalidad.",
+   svg:'<line class="l" x1="74" y1="112" x2="166" y2="112"/><line class="g" x1="166" y1="112" x2="216" y2="112"/><circle class="b" cx="226" cy="112" r="10"/><text class="t" x="226" y="116">2</text>'},
+  {k:"cintura",n:"Cintura",t:"A la altura del ombligo, o en la parte más estrecha del abdomen. Mide tras soltar el aire con normalidad y sin meter tripa.",
+   svg:'<line class="l" x1="90" y1="196" x2="150" y2="196"/><line class="g" x1="150" y1="196" x2="216" y2="196"/><circle class="b" cx="226" cy="196" r="10"/><text class="t" x="226" y="200">3</text>'},
+  {k:"pierna",n:"Pierna",t:"De pie, con el peso repartido, pon la cinta en el punto medio del muslo, entre la ingle y la rodilla, bien horizontal. Mide siempre la misma pierna.",
+   svg:'<line class="l" x1="117" y1="290" x2="151" y2="290"/><line class="g" x1="151" y1="290" x2="216" y2="290"/><circle class="b" cx="226" cy="290" r="10"/><text class="t" x="226" y="294">4</text>'}
+];
+function guiaHTML(abierta){
+  var s='<svg class="fig'+(UI.zona?' hay':'')+'" viewBox="0 0 250 430" role="img" aria-label="Figura de un hombre de frente con los puntos donde tomar cada medida">'+
+    '<g class="cuerpo"><circle cx="120" cy="38" r="24"/><rect x="109" y="58" width="22" height="22" rx="6"/>'+
+    '<path d="M72 84Q120 72 168 84L164 140Q158 170 150 200L148 244L92 244L90 200Q82 170 76 140Z"/>'+
+    '<ellipse cx="100" cy="418" rx="17" ry="6"/><ellipse cx="140" cy="418" rx="17" ry="6"/></g>'+
+    '<g class="miembro"><path d="M66 96L40 172" stroke-width="20"/><path d="M40 172L30 236" stroke-width="16"/>'+
+    '<path d="M174 96L200 172" stroke-width="20"/><path d="M200 172L210 236" stroke-width="16"/>'+
+    '<path d="M108 244L104 332" stroke-width="34"/><path d="M104 332L102 412" stroke-width="24"/>'+
+    '<path d="M132 244L136 332" stroke-width="34"/><path d="M136 332L138 412" stroke-width="24"/></g>'+
+    GUIA.map(function(z){return '<g class="zona'+(UI.zona===z.k?' on':'')+'" data-zona="'+z.k+'">'+z.svg+'</g>';}).join("")+'</svg>';
+  var l='<ol>'+GUIA.map(function(z,i){
+    return '<li class="'+(UI.zona===z.k?'on':'')+'" data-act="zona" data-k="'+z.k+'" data-zona="'+z.k+'" role="button" tabindex="0"><span class="nb">'+(i+1)+'</span><div><b>'+z.n+'</b><span class="tx">'+esc(z.t)+'</span></div></li>';
+  }).join("")+'</ol>';
+  return '<details class="panel" id="guia"'+(abierta?' open':'')+'><summary style="font-weight:700;color:var(--ink);font-size:16px">Cómo tomar las medidas</summary>'+
+    '<div class="guia">'+s+'<div style="display:flex;flex-direction:column;gap:12px;min-width:0">'+l+
+    '<p class="meta"><b>Peso, grasa y músculo:</b> por la mañana, en ayunas y después de ir al baño, siempre con la misma báscula y sin ropa. La hidratación cambia el resultado, así que repite las mismas condiciones.</p></div></div></details>';
+}
+function marcarZona(k){
+  UI.zona=k||null;
+  var g=$("#guia");if(!g)return;
+  g.querySelectorAll("[data-zona]").forEach(function(el){el.classList.toggle("on",el.dataset.zona===UI.zona);});
+  var f=g.querySelector(".fig");if(f)f.classList.toggle("hay",!!UI.zona);
+}
+
 /* ---------- vista: progreso ---------- */
 function mediciones(){return Object.keys(S.mediciones).map(function(f){return Object.assign({},S.mediciones[f],{fecha:f});}).sort(function(a,b){return a.fecha.localeCompare(b.fecha);});}
 function serieM(k){return mediciones().filter(function(m){return m.valores&&typeof m.valores[k]==="number";}).map(function(m){return {fecha:m.fecha,v:m.valores[k]};});}
@@ -534,6 +586,7 @@ function vProgreso(){
     var sel=M.filter(function(m){return m.k===UI.metrica;})[0];
     h+='<section class="panel"><h2>'+esc(sel.n)+'</h2><div class="chart">'+chart(serieM(sel.k),sel.u)+'</div></section>';
   }
+  h+=guiaHTML(UI.guia===null?!all.length:UI.guia);
   h+='<form class="panel" id="f-med"><h2>Anotar medición</h2><label class="f" style="max-width:190px">Fecha<input type="date" id="med-fecha" value="'+esc(f.fecha)+'" max="'+hoy()+'" required></label>'+
     (S.mediciones[f.fecha]?'<p class="meta">Ya hay una medición de este día: al guardar se actualizará.</p>':'')+
     '<div class="grid-m">'+M.map(function(m){return '<label class="f"><span>'+esc(m.n)+' <span class="u">('+esc(m.u)+')</span></span><input type="text" inputmode="decimal" autocomplete="off" data-med="'+esc(m.k)+'" value="'+esc(f.valores[m.k]||"")+'"></label>';}).join("")+'</div>';
@@ -613,6 +666,10 @@ view.addEventListener("change",function(e){
   if(t.id==="rut-file"){importarRutina(t.files[0]);t.value="";}
   if(t.id==="dieta-file"){importarDieta(t.files[0]);t.value="";}
 });
+view.addEventListener("focusin",function(e){var k=e.target.dataset&&e.target.dataset.med;if(k&&GUIA.some(function(z){return z.k===k;}))marcarZona(k);});
+view.addEventListener("focusout",function(e){if(e.target.dataset&&e.target.dataset.med)marcarZona(null);});
+view.addEventListener("toggle",function(e){if(e.target.id==="guia")UI.guia=e.target.open;},true);
+view.addEventListener("keydown",function(e){var li=e.target.closest&&e.target.closest("li[data-act=zona]");if(li&&(e.key==="Enter"||e.key===" ")){e.preventDefault();li.click();}});
 view.addEventListener("submit",function(e){e.preventDefault();if(e.target.id==="f-med")guardarMed();});
 view.addEventListener("click",function(e){
   var b=e.target.closest("[data-act]");if(!b)return;
@@ -636,6 +693,7 @@ view.addEventListener("click",function(e){
     if(x){if(act2){act2.estado="archivada";act2.fin=act2.fin||hoy();}x.estado="activa";x.fin="";UI.dia=0;guardar().then(function(){toast("Rutina activada");ir("actual");},render);}
   }
   else if(act==="export")exportar();
+  else if(act==="zona")marcarZona(b.dataset.k===UI.zona?null:b.dataset.k);
   else if(act==="plantilla")guardarArchivo(new File([AYUDA_RUTINA+"\n"],"plantilla-rutina.txt",{type:"text/plain"})).catch(function(){toast("No se pudo descargar la plantilla.");});
   else if(act==="abrir-archivo")abrirArchivo(b.dataset.id);
   else if(act==="metrica"){UI.metrica=b.dataset.k;render();}
