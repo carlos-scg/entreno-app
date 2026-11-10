@@ -9,6 +9,9 @@ App gratuita para llevar el control de tu entrenamiento desde el móvil: anota p
 - **PRs:** tus récords personales: para cada ejercicio, tu mayor 1RM estimado, el máximo peso y las máximas repeticiones, y cómo han ido mejorando.
 - **Progreso:** peso, grasa, músculo, brazo, pecho, cintura, pierna (y las medidas que añadas tú), con gráficas y fotos.
 - **Dieta:** tu plan como texto, PDF o imagen.
+- **Perfil:** anota la ruta de la carpeta donde guardas tus archivos de entrenamiento y de nutrición. Sirve de recordatorio y aparece como pista al cargar un archivo; la app no puede abrir carpetas por sí sola.
+
+Todas las secciones están en el menú de las tres rayas, arriba a la izquierda.
 
 ## Instalarla en el iPhone
 

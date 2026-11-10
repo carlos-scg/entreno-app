@@ -30,15 +30,25 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%;
-  padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+  padding-bottom:env(safe-area-inset-bottom,0px)}
 .wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header.top{position:sticky;top:0;z-index:9;background:var(--surface);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
-header.top .wrap{padding-block:10px;font-weight:800;font-size:17px;letter-spacing:.06em;text-transform:uppercase}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-nav .wrap{display:flex}
-nav button{flex:1;min-width:0;border:0;background:none;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
-nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-nav button[aria-current="page"]{color:var(--accent)}
+header.top .wrap{display:flex;align-items:center;gap:8px;padding-block:6px}
+.brand{font-weight:800;font-size:17px;letter-spacing:.06em;text-transform:uppercase}
+/* Menú lateral: se abre con las tres rayas de la esquina superior izquierda. */
+#menu-btn{flex:none;width:44px;height:44px;margin-left:-10px;border:0;background:none;color:var(--ink);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+#menu-btn svg{width:26px;height:26px;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;fill:none}
+#velo{position:fixed;inset:0;z-index:30;background:rgba(5,10,20,.5);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+nav#menu{position:fixed;top:0;bottom:0;left:0;z-index:31;width:min(82vw,300px);display:flex;flex-direction:column;gap:2px;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);box-shadow:8px 0 28px rgba(0,0,0,.25);
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 8px calc(env(safe-area-inset-bottom,0px) + 12px) max(8px,env(safe-area-inset-left,0px));
+  transform:translateX(-104%);visibility:hidden;transition:transform .22s ease,visibility .22s}
+nav#menu button{display:flex;align-items:center;gap:14px;width:100%;min-height:52px;border:0;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:17px;font-weight:600;padding:12px 14px;text-align:left;cursor:pointer}
+nav#menu button svg{width:24px;height:24px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav#menu button[aria-current="page"]{color:var(--accent);background:var(--accent-soft)}
+.menu-abierto{overflow:hidden}
+.menu-abierto #velo{opacity:1;visibility:visible}
+.menu-abierto nav#menu{transform:none;visibility:visible}
+@media (prefers-reduced-motion:reduce){nav#menu,#velo{transition:none}}
 button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 main{padding-block:18px 28px;display:flex;flex-direction:column;gap:16px}
 h1{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.1;margin:0;letter-spacing:-.01em;text-wrap:balance}
@@ -110,7 +120,7 @@ td.wrapcell{white-space:normal;min-width:10rem}
 .duo figcaption{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .diet{white-space:pre-wrap;word-wrap:break-word;line-height:1.6}
 .help{font-size:13.5px;color:var(--muted);background:var(--bg);border-radius:10px;padding:10px 12px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px);text-align:center}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px);text-align:center}
 /* Guía de medidas: figura a la izquierda, instrucciones a la derecha (apiladas en móvil estrecho). */
 /* Figura con los cuadros de medida a los lados (se colocan en porcentajes del lienzo). */
 .cuerpo-wrap{position:relative;width:100%;max-width:400px;margin:6px auto 0;aspect-ratio:380/430}
@@ -138,27 +148,30 @@ td.wrapcell{white-space:normal;min-width:10rem}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap">Entreno</div></header>
+<header class="top"><div class="wrap"><button type="button" id="menu-btn" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><span class="brand" id="titulo">Entreno</span></div></header>
 <div class="wrap"><main id="view"><p class="meta">Cargando…</p></main></div>
-<nav aria-label="Secciones"><div class="wrap">
+<div id="velo"></div>
+<nav id="menu" aria-label="Secciones">
   <button type="button" data-tab="actual"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg>Entreno</button>
-  <button type="button" data-tab="historial"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4zM6 9v10h12V9M10 13h4"/></svg>Anteriores</button>
   <button type="button" data-tab="prs"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>PRs</button>
+  <button type="button" data-tab="historial"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4zM6 9v10h12V9M10 13h4"/></svg>Anteriores</button>
   <button type="button" data-tab="progreso"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Progreso</button>
   <button type="button" data-tab="dieta"><svg viewBox="0 0 24 24"><path d="M12 8c-3-3-8-1-7 5 .7 4 3 7 5 7 1 0 1.3-.5 2-.5s1 .5 2 .5c2 0 4.3-3 5-7 1-6-4-8-7-5zM12 8c0-2 1-4 3-5"/></svg>Dieta</button>
-</div></nav>
+  <button type="button" data-tab="perfil"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>Perfil</button>
+</nav>
 <div id="toast" role="status" hidden></div>
 
 <script>
 (function(){
 "use strict";
-var TABS=["actual","historial","prs","progreso","dieta"];
+var TABS=["actual","prs","historial","progreso","dieta","perfil"];
+var TITULOS={actual:"Entreno",prs:"PRs",historial:"Anteriores",progreso:"Progreso",dieta:"Dieta",perfil:"Perfil"};
 var DEF_METRICAS=[
   {k:"peso",n:"Peso",u:"kg"},{k:"grasa",n:"Grasa corporal",u:"%"},{k:"musculo",n:"Masa muscular",u:"%"},
   {k:"brazo",n:"Brazo",u:"cm"},{k:"pecho",n:"Pecho",u:"cm"},{k:"cintura",n:"Cintura",u:"cm"},{k:"pierna",n:"Pierna",u:"cm"}
 ];
 var AYUDA_RUTINA="# Nombre de la rutina\n\n## Día 1 · Empuje\nPress banca | 4 | 6-8 | 2 min\nPress militar | 3 | 8-10 | 90 s | Con mancuernas\n\n## Día 2 · Tirón\nDominadas | 4 | 6-10 | 2 min";
-var idb=null,S={rutinas:[],sesiones:{},mediciones:{},metricas:DEF_METRICAS,dieta:"",dietaArchivo:null};
+var idb=null,S={rutinas:[],sesiones:{},mediciones:{},metricas:DEF_METRICAS,dieta:"",dietaArchivo:null,perfil:{rutaEntreno:"",rutaDieta:""}};
 var UI={tab:"actual",info:null,zona:null,activar:null,dia:0,fecha:hoy(),drafts:{},metrica:null,confirm:null,editor:null,dietaEd:null,nuevaMedida:false,
   med:{fecha:hoy(),valores:{},notas:"",fotos:[],quitadas:[],key:null,dirty:false}};
 var view=document.getElementById("view"),urls={},busy=false,toastTimer=null,memoria=false;
@@ -219,7 +232,7 @@ function fallo(msg){return function(e){if(!(e&&e.guardado))toast(msg);};}
 function hayBorradores(r){return !!r&&Object.keys(UI.drafts).some(function(k){return k.indexOf(r.id+"_")===0&&UI.drafts[k].dirty;});}
 function cargar(){
   return tx("kv","readonly",function(s){return s.get("estado");}).then(function(v){
-    if(v){try{var o=JSON.parse(v);S.rutinas=unicaActiva(o.rutinas||[]);S.sesiones=o.sesiones||{};S.mediciones=o.mediciones||{};S.metricas=asegurarMetricas(o.metricas&&o.metricas.length?o.metricas:DEF_METRICAS);S.dieta=o.dieta||"";S.dietaArchivo=o.dietaArchivo||null;}catch(e){}}
+    if(v){try{var o=JSON.parse(v);S.rutinas=unicaActiva(o.rutinas||[]);S.sesiones=o.sesiones||{};S.mediciones=o.mediciones||{};S.metricas=asegurarMetricas(o.metricas&&o.metricas.length?o.metricas:DEF_METRICAS);S.dieta=o.dieta||"";S.dietaArchivo=o.dietaArchivo||null;S.perfil=perfilValido(o.perfil);}catch(e){}}
     persistido=JSON.stringify(S);
   });
 }
@@ -396,7 +409,9 @@ function importarRutina(file){
     else throw "formato";
     var p=parsear(texto);if(!p.dias.length)throw "vacio";
     if(!p.nombre)texto="# "+(file.name||"Rutina").replace(/\.[^.]+$/,"")+"\n"+texto;
-    UI.editor={modo:UI.editor?UI.editor.modo:(UI.tab==="historial"?"guardada":"nueva"),tab:UI.editor?(UI.editor.tab||"actual"):UI.tab,texto:texto.trim()+"\n"};
+    var perfil=UI.tab==="perfil";   /* desde Perfil la rutina se añade a la lista y se revisa en Anteriores */
+    UI.editor={modo:UI.editor?UI.editor.modo:(UI.tab==="historial"||perfil?"guardada":"nueva"),tab:UI.editor?(UI.editor.tab||"actual"):(perfil?"historial":UI.tab),texto:texto.trim()+"\n"};
+    if(perfil){UI.tab="historial";try{localStorage.setItem("tab","historial");}catch(e){}}
     render();window.scrollTo(0,0);toast("Revisa la rutina y guárdala");
   }).catch(function(m){
     toast(m==="copia"?"Eso es una copia de seguridad: restáurala desde Anteriores."
@@ -416,7 +431,7 @@ function importarDieta(file){
     p=guardarFoto(nuevoId,file).then(function(){S.dietaArchivo={id:nuevoId,nombre:file.name||"dieta",tipo:img?"img":"pdf"};});
   }else{toast("Formato no admitido. Usa .txt, .md, .csv, PDF o una imagen.");return;}
   /* El archivo anterior se borra solo cuando la referencia nueva ya está guardada; si falla, se borra el nuevo. */
-  p.then(guardar).then(function(){if(nuevoId&&prev)borrarFoto(prev.id);toast("Dieta cargada");},function(e){if(nuevoId)borrarFoto(nuevoId);fallo("No se pudo cargar la dieta.")(e);}).then(render);
+  p.then(guardar).then(function(){if(nuevoId&&prev)borrarFoto(prev.id);toast("Dieta cargada");if(UI.tab==="perfil"){UI.tab="dieta";try{localStorage.setItem("tab","dieta");}catch(e){}}},function(e){if(nuevoId)borrarFoto(nuevoId);fallo("No se pudo cargar la dieta.")(e);}).then(render);
 }
 function abrirArchivo(id){
   tx("fotos","readonly",function(s){return s.get(id);}).then(function(b){
@@ -432,7 +447,7 @@ function vEditor(){
   var ed=UI.editor;
   return '<div class="head"><h1>'+(ed.modo==="editar"?"Editar rutina":ed.modo==="guardada"?"Añadir rutina":"Nueva rutina")+'</h1><p class="lead">'+(ed.modo==="editar"?"Puedes reordenar días y ejercicios sin problema. El historial se enlaza por el nombre: si cambias el nombre de un día o de un ejercicio, el historial anterior deja de mostrarse con él.":ed.modo==="guardada"?"Se guardará en Anteriores sin cambiar tu rutina en curso. Podrás activarla cuando quieras, y elegir cuánto tiempo la vas a hacer.":"La rutina actual pasará a Anteriores con todos sus registros.")+'</p></div>'+
     '<section class="panel"><label class="f">Rutina en texto<textarea class="code" id="ed-texto" spellcheck="false" autocapitalize="sentences">'+esc(ed.texto)+'</textarea></label>'+
-    '<div class="row">'+CARGAR_RUTINA+'<button type="button" class="btn ghost" data-act="plantilla">Descargar plantilla</button></div>'+
+    '<div class="row">'+CARGAR_RUTINA+'<button type="button" class="btn ghost" data-act="plantilla">Descargar plantilla</button></div>'+rutaHint("rutaEntreno")+
     '<details><summary>¿Cómo se escribe?</summary><p class="help" style="margin-top:8px">'+esc(AYUDA_RUTINA)+'\n\nCada línea de ejercicio: nombre | series | repeticiones | descanso | nota (lo último es opcional).\n\nTambién puedes cargar un archivo .txt, .csv (columnas: día, ejercicio, series, repeticiones, descanso, nota) o .json.</p></details></section>'+
     '<div class="row"><button type="button" class="btn primary" data-act="ed-ok">Guardar rutina</button><button type="button" class="btn ghost" data-act="ed-no">Cancelar</button></div>';
 }
@@ -550,7 +565,7 @@ function vHistorial(){
     h+='<section class="panel"><div class="head"><span class="meta">Rutina activa</span><h2>'+esc(act.nombre)+'</h2><p class="meta">'+esc(plazo(act).txt)+'</p></div>'+
       (UI.activar&&UI.activar.id===act.id?panelActivar(act):'<div class="row"><button type="button" class="btn sm" data-act="activar" data-id="'+esc(act.id)+'">Cambiar duración</button></div>')+'</section>';
   }
-  h+='<div class="row"><button type="button" class="btn" data-act="ed-guardada">Añadir rutina</button>'+CARGAR_RUTINA+'</div>';
+  h+='<div class="row"><button type="button" class="btn" data-act="ed-guardada">Añadir rutina</button>'+CARGAR_RUTINA+'</div>'+rutaHint("rutaEntreno");
   if(!arch.length)h+='<div class="empty"><strong>No hay más rutinas guardadas.</strong><span>Añade rutinas (escritas o desde un archivo) y activa la que quieras usar. Las que termines también quedarán aquí.</span></div>';
   arch.forEach(function(r){
     var n=sesionesDe(r.id).length,per=r.inicio?fF(r.inicio,true)+(r.fin?" – "+fF(r.fin,true):""):"Sin usar";
@@ -652,7 +667,8 @@ function importar(file){
       mediciones:obj(e.mediciones)?e.mediciones:{},
       metricas:asegurarMetricas(Array.isArray(e.metricas)&&e.metricas.length?e.metricas:DEF_METRICAS),
       dieta:typeof e.dieta==="string"?e.dieta:"",
-      dietaArchivo:obj(e.dietaArchivo)?e.dietaArchivo:null
+      dietaArchivo:obj(e.dietaArchivo)?e.dietaArchivo:null,
+      perfil:perfilValido(e.perfil)
     };
     var fotos=obj(o.fotos)?o.fotos:{};
     return Promise.all(Object.keys(fotos).map(function(id){
@@ -847,19 +863,63 @@ function vDieta(){
     }
     return h+'<div class="row"><button type="button" class="btn" data-act="dieta-ed">'+(S.dieta.trim()?"Editar texto":"Añadir texto")+'</button>'+cargarDieta()+'</div>';
   }
-  if(UI.dietaEd==null)return '<div class="head"><h1>Dieta</h1></div><div class="empty"><strong>Todavía no has añadido tu dieta.</strong><span>Escríbela, pégala o cárgala desde un archivo de tu móvil o de tu nube (texto, PDF o imagen). La tendrás siempre a mano, incluso sin conexión.</span><div class="row"><button type="button" class="btn primary" data-act="dieta-ed">Escribir dieta</button>'+cargarDieta()+'</div></div>';
+  if(UI.dietaEd==null)return '<div class="head"><h1>Dieta</h1></div><div class="empty"><strong>Todavía no has añadido tu dieta.</strong><span>Escríbela, pégala o cárgala desde un archivo de tu móvil o de tu nube (texto, PDF o imagen). La tendrás siempre a mano, incluso sin conexión.</span><div class="row"><button type="button" class="btn primary" data-act="dieta-ed">Escribir dieta</button>'+cargarDieta()+'</div>'+rutaHint("rutaDieta")+'</div>';
   if(UI.dietaEd!=null)return '<div class="head"><h1>Editar dieta</h1></div><section class="panel"><label class="f">Tu dieta<textarea class="code" id="dieta-texto" style="font-family:inherit;font-size:16px" placeholder="Desayuno (8:00)&#10;- Avena 60 g&#10;- 2 huevos&#10;&#10;Comida (14:00)&#10;- …">'+esc(UI.dietaEd)+'</textarea></label></section><div class="row"><button type="button" class="btn primary" data-act="dieta-ok">Guardar</button><button type="button" class="btn ghost" data-act="dieta-no">Cancelar</button></div>';
+}
+
+/* ---------- perfil: rutas de las carpetas de archivos ---------- */
+/* Una app web no puede abrir carpetas del móvil por sí sola. La ruta se guarda como recordatorio y se muestra
+   como pista al cargar archivos (el selector de archivos de iOS sí llega a iCloud Drive, OneDrive, Drive…). */
+function perfilValido(p){
+  p=p&&typeof p==="object"&&!Array.isArray(p)?p:{};
+  return {rutaEntreno:typeof p.rutaEntreno==="string"?p.rutaEntreno.slice(0,300):"",rutaDieta:typeof p.rutaDieta==="string"?p.rutaDieta.slice(0,300):""};
+}
+function rutaHint(k){var r=S.perfil&&S.perfil[k];return r?'<p class="meta">Busca el archivo en tu carpeta: <b>'+esc(r)+'</b></p>':'';}
+function vPerfil(){
+  var p=S.perfil;
+  return '<div class="head"><h1>Perfil</h1><p class="lead">Anota dónde guardas tus archivos de entrenamiento y de nutrición para encontrarlos rápido al cargarlos.</p></div>'+
+    '<form class="panel" id="f-perfil"><h2>Carpetas de tus archivos</h2>'+
+    '<label class="f">Carpeta de entrenamiento<input type="text" id="perfil-entreno" autocomplete="off" autocapitalize="none" maxlength="300" placeholder="Ej.: iCloud Drive/Entreno/Rutinas" value="'+esc(p.rutaEntreno)+'"></label>'+
+    '<div class="row">'+CARGAR_RUTINA+'</div>'+
+    '<label class="f">Carpeta de nutrición<input type="text" id="perfil-dieta" autocomplete="off" autocapitalize="none" maxlength="300" placeholder="Ej.: OneDrive/Nutrición" value="'+esc(p.rutaDieta)+'"></label>'+
+    '<div class="row">'+cargarDieta()+'</div>'+
+    '<button type="submit" class="btn primary big">Guardar rutas</button></form>'+
+    '<p class="note" style="background:var(--accent-soft);color:var(--ink)">Cómo funciona: una app web no puede abrir las carpetas de tu móvil por sí sola. Al pulsar «Cargar desde archivo» se abre el selector de tu iPhone (iCloud Drive, OneDrive, Google Drive…) y tú navegas hasta tu carpeta. La ruta que guardas aquí es un recordatorio y aparece como pista al cargar. La lectura automática desde la nube todavía no está disponible.</p>';
+}
+function guardarPerfil(){
+  S.perfil=perfilValido({rutaEntreno:($("#perfil-entreno").value||"").trim(),rutaDieta:($("#perfil-dieta").value||"").trim()});
+  guardar().then(function(){toast("Rutas guardadas");},NADA).then(render);
 }
 
 /* ---------- render y eventos ---------- */
 function render(){
   UI.info=null;UI.zona=null;
-  document.querySelectorAll("nav button").forEach(function(b){if(b.dataset.tab===UI.tab)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
-  view.innerHTML=({actual:vActual,historial:vHistorial,prs:vPRs,progreso:vProgreso,dieta:vDieta})[UI.tab]();
+  document.querySelectorAll("#menu button").forEach(function(b){if(b.dataset.tab===UI.tab)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
+  $("#titulo").textContent=TITULOS[UI.tab]||"Entreno";
+  view.innerHTML=({actual:vActual,historial:vHistorial,prs:vPRs,progreso:vProgreso,dieta:vDieta,perfil:vPerfil})[UI.tab]();
   cargarFotos();
 }
 function ir(t){UI.tab=t;UI.confirm=null;UI.activar=null;render();window.scrollTo(0,0);try{localStorage.setItem("tab",t);}catch(e){}}
-document.querySelector("nav").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)ir(b.dataset.tab);});
+/* Menú lateral */
+var menuAbierto=function(){return document.documentElement.classList.contains("menu-abierto");};
+function abrirMenu(){
+  document.documentElement.classList.add("menu-abierto");$("#menu-btn").setAttribute("aria-expanded","true");
+  setTimeout(function(){var a=$("#menu [aria-current]")||$("#menu button");if(a)a.focus();},30);
+}
+function cerrarMenu(){
+  if(!menuAbierto())return;
+  document.documentElement.classList.remove("menu-abierto");$("#menu-btn").setAttribute("aria-expanded","false");$("#menu-btn").focus();
+}
+$("#menu-btn").addEventListener("click",function(){if(menuAbierto())cerrarMenu();else abrirMenu();});
+$("#velo").addEventListener("click",cerrarMenu);
+$("#menu").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b){cerrarMenu();ir(b.dataset.tab);}});
+/* El foco no sale del menú mientras está abierto. */
+$("#menu").addEventListener("keydown",function(e){
+  if(e.key!=="Tab")return;
+  var bs=[].slice.call(document.querySelectorAll("#menu button")),p=bs[0],u=bs[bs.length-1];
+  if(e.shiftKey&&document.activeElement===p){e.preventDefault();u.focus();}
+  else if(!e.shiftKey&&document.activeElement===u){e.preventDefault();p.focus();}
+});
 
 view.addEventListener("input",function(e){
   var t=e.target,r=rutinaActiva(),d;
@@ -887,8 +947,8 @@ view.addEventListener("focusin",function(e){var k=e.target.dataset&&e.target.dat
 view.addEventListener("focusout",function(e){if(e.target.dataset&&e.target.dataset.med&&!UI.info)marcarZona(null);});
 /* Un toque fuera de la ayuda (o Escape) la cierra. */
 view.addEventListener("click",function(e){if(!e.target.closest(".pop,.ibtn"))cerrarInfo();},true);
-document.addEventListener("keydown",function(e){if(e.key==="Escape")cerrarInfo();});
-view.addEventListener("submit",function(e){e.preventDefault();if(e.target.id==="f-med")guardarMed();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){cerrarInfo();cerrarMenu();}});
+view.addEventListener("submit",function(e){e.preventDefault();if(e.target.id==="f-med")guardarMed();if(e.target.id==="f-perfil")guardarPerfil();});
 view.addEventListener("click",function(e){
   var b=e.target.closest("[data-act]");if(!b)return;
   var act=b.dataset.act,r=rutinaActiva(),d;
