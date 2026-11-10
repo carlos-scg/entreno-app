@@ -499,12 +499,32 @@ function exportar(){
 }
 function importar(file){
   if(!file||busy)return;busy=true;
+  var nuevo=null;
+  /* Orden: 1) validar la copia, 2) convertir y guardar las fotos, 3) solo entonces sustituir S y
+     guardar; si ese último guardado falla, se devuelve S a como estaba. */
   file.text().then(function(t){
-    var o=JSON.parse(t);if(!o||o.app!=="entreno"||!o.estado)throw 0;
-    S.rutinas=o.estado.rutinas||[];S.sesiones=o.estado.sesiones||{};S.mediciones=o.estado.mediciones||{};S.metricas=o.estado.metricas&&o.estado.metricas.length?o.estado.metricas:DEF_METRICAS;S.dieta=o.estado.dieta||"";S.dietaArchivo=o.estado.dietaArchivo||null;
-    var ids=Object.keys(o.fotos||{});urls={};
-    return Promise.all(ids.map(function(id){return dataUrlABlob(o.fotos[id]).then(function(b){return guardarFoto(id,b);});}));
-  }).then(guardar).then(function(){UI.drafts={};toast("Copia restaurada");},fallo("Ese archivo no es una copia válida.")).then(function(){busy=false;render();});
+    var o=JSON.parse(t),e=o&&o.estado,obj=function(x){return x&&typeof x==="object"&&!Array.isArray(x);};
+    if(!o||o.app!=="entreno"||!obj(e))throw 0;
+    nuevo={
+      rutinas:Array.isArray(e.rutinas)?e.rutinas:[],
+      sesiones:obj(e.sesiones)?e.sesiones:{},
+      mediciones:obj(e.mediciones)?e.mediciones:{},
+      metricas:Array.isArray(e.metricas)&&e.metricas.length?e.metricas:DEF_METRICAS,
+      dieta:typeof e.dieta==="string"?e.dieta:"",
+      dietaArchivo:obj(e.dietaArchivo)?e.dietaArchivo:null
+    };
+    var fotos=obj(o.fotos)?o.fotos:{};
+    return Promise.all(Object.keys(fotos).map(function(id){
+      if(typeof fotos[id]!=="string"||fotos[id].indexOf("data:")!==0)throw 0;
+      return dataUrlABlob(fotos[id]).then(function(b){return [id,b];});
+    }));
+  }).then(function(pares){
+    return pares.reduce(function(c,p){return c.then(function(){return guardarFoto(p[0],p[1]);});},Promise.resolve());
+  }).then(function(){
+    var anterior=JSON.parse(JSON.stringify(S));
+    Object.assign(S,nuevo);urls={};
+    return guardar().catch(function(err){Object.assign(S,anterior);throw err;});
+  }).then(function(){UI.drafts={};toast("Copia restaurada");},fallo("Ese archivo no es una copia válida. No se ha cambiado nada.")).then(function(){busy=false;render();});
 }
 
 /* ---------- guía visual de medidas ---------- */
