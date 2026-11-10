@@ -3,7 +3,7 @@
    En GitHub Pages todos los proyectos de un usuario comparten origen (y por tanto cachés), así que este
    archivo solo toca las cachés con su propio prefijo y solo sirve archivos de su propia carpeta. */
 var PREFIJO = "entreno-app-";
-var VERSION = PREFIJO + "v11";
+var VERSION = PREFIJO + "v12";
 var ARCHIVOS = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 /* Cachés propias: las nuevas (entreno-app-vN) y las de versiones antiguas (entreno-vN). */

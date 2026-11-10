@@ -133,6 +133,7 @@ td.wrapcell{white-space:normal;min-width:10rem}
 .otras{display:flex;align-items:center;gap:8px;margin-top:4px}
 .otras b{font-size:15px}
 .nota-info{background:var(--accent-soft);border-radius:10px;padding:10px 12px}
+.badge-pr{display:inline-block;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -142,6 +143,7 @@ td.wrapcell{white-space:normal;min-width:10rem}
 <nav aria-label="Secciones"><div class="wrap">
   <button type="button" data-tab="actual"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg>Entreno</button>
   <button type="button" data-tab="historial"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4zM6 9v10h12V9M10 13h4"/></svg>Anteriores</button>
+  <button type="button" data-tab="prs"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>PRs</button>
   <button type="button" data-tab="progreso"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Progreso</button>
   <button type="button" data-tab="dieta"><svg viewBox="0 0 24 24"><path d="M12 8c-3-3-8-1-7 5 .7 4 3 7 5 7 1 0 1.3-.5 2-.5s1 .5 2 .5c2 0 4.3-3 5-7 1-6-4-8-7-5zM12 8c0-2 1-4 3-5"/></svg>Dieta</button>
 </div></nav>
@@ -150,14 +152,14 @@ td.wrapcell{white-space:normal;min-width:10rem}
 <script>
 (function(){
 "use strict";
-var TABS=["actual","historial","progreso","dieta"];
+var TABS=["actual","historial","prs","progreso","dieta"];
 var DEF_METRICAS=[
   {k:"peso",n:"Peso",u:"kg"},{k:"grasa",n:"Grasa corporal",u:"%"},{k:"musculo",n:"Masa muscular",u:"%"},
   {k:"brazo",n:"Brazo",u:"cm"},{k:"pecho",n:"Pecho",u:"cm"},{k:"cintura",n:"Cintura",u:"cm"},{k:"pierna",n:"Pierna",u:"cm"}
 ];
 var AYUDA_RUTINA="# Nombre de la rutina\n\n## Día 1 · Empuje\nPress banca | 4 | 6-8 | 2 min\nPress militar | 3 | 8-10 | 90 s | Con mancuernas\n\n## Día 2 · Tirón\nDominadas | 4 | 6-10 | 2 min";
 var idb=null,S={rutinas:[],sesiones:{},mediciones:{},metricas:DEF_METRICAS,dieta:"",dietaArchivo:null};
-var UI={tab:"actual",info:null,zona:null,dia:0,fecha:hoy(),drafts:{},metrica:null,confirm:null,editor:null,dietaEd:null,nuevaMedida:false,
+var UI={tab:"actual",info:null,zona:null,activar:null,dia:0,fecha:hoy(),drafts:{},metrica:null,confirm:null,editor:null,dietaEd:null,nuevaMedida:false,
   med:{fecha:hoy(),valores:{},notas:"",fotos:[],quitadas:[],key:null,dirty:false}};
 var view=document.getElementById("view"),urls={},busy=false,toastTimer=null,memoria=false;
 
@@ -217,7 +219,7 @@ function fallo(msg){return function(e){if(!(e&&e.guardado))toast(msg);};}
 function hayBorradores(r){return !!r&&Object.keys(UI.drafts).some(function(k){return k.indexOf(r.id+"_")===0&&UI.drafts[k].dirty;});}
 function cargar(){
   return tx("kv","readonly",function(s){return s.get("estado");}).then(function(v){
-    if(v){try{var o=JSON.parse(v);S.rutinas=o.rutinas||[];S.sesiones=o.sesiones||{};S.mediciones=o.mediciones||{};S.metricas=asegurarMetricas(o.metricas&&o.metricas.length?o.metricas:DEF_METRICAS);S.dieta=o.dieta||"";S.dietaArchivo=o.dietaArchivo||null;}catch(e){}}
+    if(v){try{var o=JSON.parse(v);S.rutinas=unicaActiva(o.rutinas||[]);S.sesiones=o.sesiones||{};S.mediciones=o.mediciones||{};S.metricas=asegurarMetricas(o.metricas&&o.metricas.length?o.metricas:DEF_METRICAS);S.dieta=o.dieta||"";S.dietaArchivo=o.dietaArchivo||null;}catch(e){}}
     persistido=JSON.stringify(S);
   });
 }
@@ -321,16 +323,19 @@ function aTexto(r){
   return t;
 }
 function guardarRutina(){
-  var ed=UI.editor,p=parsear(ed.texto);
+  var ed=UI.editor,p=parsear(ed.texto),modo=ed.modo;
   if(!p.dias.length){toast("Añade al menos un día con un ejercicio.");return;}
   var act=rutinaActiva();
-  if(ed.modo==="editar"&&act){act.nombre=p.nombre||act.nombre;act.dias=p.dias;}
+  if(modo==="guardada"){
+    /* se guarda en la lista sin tocar la rutina activa; se activa después desde Anteriores */
+    S.rutinas.push({id:"r-"+uid(),nombre:p.nombre||"Rutina",estado:"archivada",inicio:"",fin:"",dias:p.dias});
+  }else if(modo==="editar"&&act){act.nombre=p.nombre||act.nombre;act.dias=p.dias;}
   else{
     if(act){act.estado="archivada";act.fin=hoy();}
-    S.rutinas.push({id:"r-"+uid(),nombre:p.nombre||"Rutina",estado:"activa",inicio:hoy(),fin:"",dias:p.dias});
+    S.rutinas.push({id:"r-"+uid(),nombre:p.nombre||"Rutina",estado:"activa",inicio:hoy(),fin:"",finPrevisto:"",dias:p.dias});
     UI.dia=0;
   }
-  guardar().then(function(){UI.editor=null;toast("Rutina guardada");},NADA).then(render);
+  guardar().then(function(){UI.editor=null;toast(modo==="guardada"?"Rutina guardada en Anteriores":"Rutina guardada");},NADA).then(render);
 }
 
 /* ---------- cargar rutina y dieta desde archivos ---------- */
@@ -386,7 +391,7 @@ function importarRutina(file){
     else throw "formato";
     var p=parsear(texto);if(!p.dias.length)throw "vacio";
     if(!p.nombre)texto="# "+(file.name||"Rutina").replace(/\.[^.]+$/,"")+"\n"+texto;
-    UI.editor={modo:UI.editor?UI.editor.modo:"nueva",texto:texto.trim()+"\n"};
+    UI.editor={modo:UI.editor?UI.editor.modo:(UI.tab==="historial"?"guardada":"nueva"),tab:UI.editor?(UI.editor.tab||"actual"):UI.tab,texto:texto.trim()+"\n"};
     render();window.scrollTo(0,0);toast("Revisa la rutina y guárdala");
   }).catch(function(m){
     toast(m==="copia"?"Eso es una copia de seguridad: restáurala desde Anteriores."
@@ -419,7 +424,7 @@ var CARGAR_RUTINA='<label class="btn" style="cursor:pointer">Cargar desde archiv
 /* ---------- vista: entreno ---------- */
 function vEditor(){
   var ed=UI.editor;
-  return '<div class="head"><h1>'+(ed.modo==="editar"?"Editar rutina":"Nueva rutina")+'</h1><p class="lead">'+(ed.modo==="editar"?"Puedes reordenar días y ejercicios sin problema. El historial se enlaza por el nombre: si cambias el nombre de un día o de un ejercicio, el historial anterior deja de mostrarse con él.":"La rutina actual pasará a Anteriores con todos sus registros.")+'</p></div>'+
+  return '<div class="head"><h1>'+(ed.modo==="editar"?"Editar rutina":ed.modo==="guardada"?"Añadir rutina":"Nueva rutina")+'</h1><p class="lead">'+(ed.modo==="editar"?"Puedes reordenar días y ejercicios sin problema. El historial se enlaza por el nombre: si cambias el nombre de un día o de un ejercicio, el historial anterior deja de mostrarse con él.":ed.modo==="guardada"?"Se guardará en Anteriores sin cambiar tu rutina en curso. Podrás activarla cuando quieras, y elegir cuánto tiempo la vas a hacer.":"La rutina actual pasará a Anteriores con todos sus registros.")+'</p></div>'+
     '<section class="panel"><label class="f">Rutina en texto<textarea class="code" id="ed-texto" spellcheck="false" autocapitalize="sentences">'+esc(ed.texto)+'</textarea></label>'+
     '<div class="row">'+CARGAR_RUTINA+'<button type="button" class="btn ghost" data-act="plantilla">Descargar plantilla</button></div>'+
     '<details><summary>¿Cómo se escribe?</summary><p class="help" style="margin-top:8px">'+esc(AYUDA_RUTINA)+'\n\nCada línea de ejercicio: nombre | series | repeticiones | descanso | nota (lo último es opcional).\n\nTambién puedes cargar un archivo .txt, .csv (columnas: día, ejercicio, series, repeticiones, descanso, nota) o .json.</p></details></section>'+
@@ -432,11 +437,13 @@ function btnBorrar(key,label){
     :'<button type="button" class="btn ghost sm" data-act="ask" data-key="'+esc(key)+'">'+label+'</button>';
 }
 function vActual(){
-  if(UI.editor)return vEditor();
+  if(UI.editor&&UI.editor.tab!=="historial")return vEditor();
   var r=rutinaActiva();
   if(!r)return '<div class="head"><h1>Entreno</h1></div><div class="empty"><strong>Todavía no tienes ninguna rutina.</strong><span>Escríbela o cárgala desde un archivo de tu móvil o de tu nube (.txt, .csv o .json) y empieza a anotar tus pesos.</span><div class="row"><button type="button" class="btn primary" data-act="ed-nueva">Crear rutina</button>'+CARGAR_RUTINA+'</div></div>';
   var dias=r.dias||[],ses=sesionesDe(r.id),d=draftDe(r),dia=dias[UI.dia]||{ejercicios:[]};
-  var h='<div class="head"><h1>'+esc(r.nombre)+'</h1><p class="meta">'+esc(ses.length+(ses.length===1?" sesión registrada":" sesiones registradas"))+'</p></div>';
+  var pl=plazo(r);
+  var h='<div class="head"><h1>'+esc(r.nombre)+'</h1><p class="meta">'+esc([ses.length+(ses.length===1?" sesión registrada":" sesiones registradas"),pl.txt].join(" · "))+'</p></div>';
+  if(pl.terminada)h+='<div class="note">Esta rutina terminó el '+fF(r.finPrevisto)+'. Puedes seguir con ella o elegir otra.<div class="row" style="margin-top:8px"><button type="button" class="btn sm" data-act="ampliar">Seguir 4 semanas más</button><button type="button" class="btn sm ghost" data-act="ir-anteriores">Elegir otra rutina</button></div></div>';
   h+='<div class="chips" role="group" aria-label="Día de la rutina">'+dias.map(function(x,i){
     var ult=null;ses.forEach(function(s){if(s.dia===x.id)ult=s.fecha;});
     return '<button type="button" class="chip" data-act="dia" data-i="'+i+'" aria-pressed="'+(i===UI.dia)+'"><b>'+esc(x.nombre)+'</b><small>'+(ult?"Último: "+fF(ult,true):"Sin registrar")+'</small></button>';
@@ -484,21 +491,132 @@ function guardarSesion(){
 }
 
 /* ---------- vista: anteriores + copia de seguridad ---------- */
+/* Plazo de la rutina activa: `inicio` es el día en que se activó y `finPrevisto` el último día (vacío = sin fecha de fin). */
+function sumarDias(iso,n){var d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function difDias(a,b){return Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);}
+/* Solo puede haber una rutina activa: si una copia trae varias, se queda la primera. */
+function unicaActiva(lista){var ya=false;lista.forEach(function(r){if(r&&r.estado==="activa"){if(ya)r.estado="archivada";ya=true;}});return lista;}
+function semanasTotales(r){return r.finPrevisto?Math.max(1,Math.ceil((difDias(r.inicio||hoy(),r.finPrevisto)+1)/7)):null;}
+function plazo(r){
+  if(!r.finPrevisto)return {txt:"Sin fecha de fin",terminada:false};
+  if(hoy()>r.finPrevisto)return {txt:"Terminó el "+fF(r.finPrevisto),terminada:true};
+  var tot=semanasTotales(r),sem=Math.max(1,Math.min(tot,Math.floor(difDias(r.inicio||hoy(),hoy())/7)+1));
+  return {txt:"Semana "+sem+" de "+tot+" · termina el "+fF(r.finPrevisto),terminada:false};
+}
+function semanasValidas(a){var t=String(a.semanas).trim();return /^\d{1,2}$/.test(t)&&+t>=1&&+t<=52?+t:null;}
+function textoFin(r){
+  var a=UI.activar;
+  if(a.sinFin)return "Sin fecha de fin: seguirá activa hasta que elijas otra.";
+  var s=semanasValidas(a);
+  if(s==null)return "Escribe un número de semanas entre 1 y 52.";
+  var activa=r.estado==="activa",ini=activa&&r.inicio?r.inicio:hoy();
+  return (activa?"Empezó el "+fF(ini,true)+" y terminará el ":"Empieza hoy y terminará el ")+fF(sumarDias(ini,s*7-1))+".";
+}
+function panelActivar(r){
+  var a=UI.activar,h='<div class="panel" style="background:var(--bg)"><h3>¿Cuánto tiempo vas a hacer esta rutina?</h3><div class="chips" role="group" aria-label="Duración">';
+  [4,6,8,12].forEach(function(n){h+='<button type="button" class="chip" data-act="dur" data-v="'+n+'" aria-pressed="'+(!a.sinFin&&String(a.semanas)===String(n))+'"><b>'+n+' semanas</b></button>';});
+  h+='<button type="button" class="chip" data-act="dur" data-v="0" aria-pressed="'+a.sinFin+'"><b>Sin fecha de fin</b></button></div>';
+  if(!a.sinFin)h+='<label class="f" style="max-width:210px">Otra duración (semanas)<input type="text" inputmode="numeric" autocomplete="off" id="act-sem" value="'+esc(a.semanas)+'"></label>';
+  h+='<p class="meta" id="act-fin">'+esc(textoFin(r))+'</p><div class="row"><button type="button" class="btn primary" data-act="activar-ok">'+(r.estado==="activa"?"Guardar duración":"Activar rutina")+'</button><button type="button" class="btn ghost" data-act="activar-no">Cancelar</button></div></div>';
+  return h;
+}
+function confirmarActivar(){
+  var a=UI.activar;if(!a)return;
+  var x=S.rutinas.filter(function(q){return q.id===a.id;})[0];
+  if(!x){UI.activar=null;render();return;}
+  var sem=a.sinFin?null:semanasValidas(a);
+  if(!a.sinFin&&sem==null){toast("Escribe un número de semanas entre 1 y 52.");return;}
+  var act=rutinaActiva(),cambia=x.estado!=="activa";
+  if(cambia){
+    if(hayBorradores(act)){toast("Tienes cambios sin guardar en la sesión. Guárdala antes de cambiar de rutina.");return;}
+    if(act){act.estado="archivada";act.fin=hoy();}
+    x.estado="activa";x.inicio=hoy();x.fin="";UI.dia=0;
+  }
+  x.finPrevisto=sem?sumarDias(x.inicio||hoy(),sem*7-1):"";
+  guardar().then(function(){UI.activar=null;toast(cambia?"Rutina activada":"Duración guardada");if(cambia)ir("actual");},NADA).then(function(){if(UI.tab==="historial")render();});
+}
 function vHistorial(){
-  var arch=S.rutinas.filter(function(r){return r.estado!=="activa";}).sort(function(a,b){return String(b.fin||b.inicio||"").localeCompare(String(a.fin||a.inicio||""));});
-  var h='<div class="head"><h1>Anteriores</h1><p class="lead">Cada rutina que termines queda archivada aquí con tus mejores marcas.</p></div>';
-  if(!arch.length)h+='<div class="empty"><strong>Aún no hay rutinas archivadas.</strong><span>Cuando crees una rutina nueva, la que está en curso pasará a esta lista.</span></div>';
+  if(UI.editor&&UI.editor.tab==="historial")return vEditor();
+  var act=rutinaActiva();
+  var arch=S.rutinas.filter(function(r){return r.estado!=="activa";}).sort(function(a,b){return String(b.fin||b.inicio||"9").localeCompare(String(a.fin||a.inicio||"9"));});
+  var h='<div class="head"><h1>Anteriores</h1><p class="lead">Tus rutinas guardadas y las que ya terminaste. Solo una puede estar activa: elige cuál y durante cuánto tiempo.</p></div>';
+  if(act){
+    h+='<section class="panel"><div class="head"><span class="meta">Rutina activa</span><h2>'+esc(act.nombre)+'</h2><p class="meta">'+esc(plazo(act).txt)+'</p></div>'+
+      (UI.activar&&UI.activar.id===act.id?panelActivar(act):'<div class="row"><button type="button" class="btn sm" data-act="activar" data-id="'+esc(act.id)+'">Cambiar duración</button></div>')+'</section>';
+  }
+  h+='<div class="row"><button type="button" class="btn" data-act="ed-guardada">Añadir rutina</button>'+CARGAR_RUTINA+'</div>';
+  if(!arch.length)h+='<div class="empty"><strong>No hay más rutinas guardadas.</strong><span>Añade rutinas (escritas o desde un archivo) y activa la que quieras usar. Las que termines también quedarán aquí.</span></div>';
   arch.forEach(function(r){
-    var n=sesionesDe(r.id).length;
-    h+='<section class="panel"><div class="head"><h2>'+esc(r.nombre)+'</h2><p class="meta">'+esc([fF(r.inicio,true)+(r.fin?" – "+fF(r.fin,true):""),n+(n===1?" sesión":" sesiones")].join(" · "))+'</p></div>'+
+    var n=sesionesDe(r.id).length,per=r.inicio?fF(r.inicio,true)+(r.fin?" – "+fF(r.fin,true):""):"Sin usar";
+    h+='<section class="panel"><div class="head"><h2>'+esc(r.nombre)+'</h2><p class="meta">'+esc([per,n+(n===1?" sesión":" sesiones")].join(" · "))+'</p></div>'+
       '<details><summary>Ver el plan y las mejores marcas</summary>'+(r.dias||[]).map(function(d){
         return '<h4>'+esc(d.nombre)+'</h4><div class="scroll"><table><thead><tr><th>Ejercicio</th><th>Series × reps</th><th>Mejor marca</th></tr></thead><tbody>'+
           (d.ejercicios||[]).map(function(ex){return '<tr><td class="wrapcell">'+esc(ex.nombre)+'</td><td>'+esc((ex.series?ex.series+" × ":"")+(ex.reps||""))+'</td><td>'+esc(mejorMarca(r,ex.id)||"–")+'</td></tr>';}).join("")+'</tbody></table></div>';
       }).join("")+'</details>'+
-      '<div class="row"><button type="button" class="btn sm" data-act="reactivar" data-id="'+esc(r.id)+'">Volver a usarla</button>'+btnBorrar("rut:"+r.id,"Borrar")+'</div></section>';
+      (UI.activar&&UI.activar.id===r.id?panelActivar(r):'<div class="row"><button type="button" class="btn primary sm" data-act="activar" data-id="'+esc(r.id)+'">Activar…</button>'+btnBorrar("rut:"+r.id,"Borrar")+'</div>')+'</section>';
   });
   h+='<section class="panel"><h2>Copia de seguridad</h2><p class="meta">Tus datos viven solo en este iPhone. Guarda una copia de vez en cuando (por ejemplo en iCloud Drive) y podrás recuperarlo todo si cambias de móvil.</p>'+
     '<div class="row"><button type="button" class="btn primary" data-act="export">Guardar copia</button><label class="btn" style="cursor:pointer">Restaurar copia<input type="file" id="imp-file" accept="application/json,.json" hidden></label></div></section>';
+  return h;
+}
+
+/* ---------- pestaña PRs: récords personales ---------- */
+/* Para cada ejercicio, con todo el historial (de todas las rutinas): mayor 1RM estimado, más peso levantado y más repeticiones
+   en una serie, y cuándo se fue superando el récord. El ejercicio se identifica por su id (el nombre sin acentos). */
+function nombreEj(id){
+  for(var i=0;i<S.rutinas.length;i++){var ds=S.rutinas[i].dias||[];for(var j=0;j<ds.length;j++){var es=ds[j].ejercicios||[];for(var k=0;k<es.length;k++)if(es[k].id===id)return es[k].nombre;}}
+  return id;
+}
+function calcularPRs(){
+  var ses=Object.keys(S.sesiones).map(function(k){return S.sesiones[k];}).sort(function(a,b){return String(a.fecha).localeCompare(String(b.fecha));});
+  var por={};
+  ses.forEach(function(s){
+    Object.keys(s.sets||{}).forEach(function(id){
+      var mejorE=null,mejorP=null,mejorR=null;
+      (s.sets[id]||[]).forEach(function(x){
+        var r=Number(x.reps),k=Number(x.kg);
+        if(!(r>0))return;
+        if(k>0){
+          var e=k*(1+r/30);
+          if(!mejorE||e>mejorE.v)mejorE={v:e,kg:k,reps:r};
+          if(!mejorP||k>mejorP.kg||(k===mejorP.kg&&r>mejorP.reps))mejorP={kg:k,reps:r};
+        }
+        if(!mejorR||r>mejorR.v)mejorR={v:r,kg:k>0?k:null};
+      });
+      if(!mejorE&&!mejorR)return;
+      var p=por[id]||(por[id]={id:id,nombre:nombreEj(id),e1rm:null,peso:null,reps:null,hist:[],ultima:""});
+      var nuevo=false;
+      if(mejorE&&(!p.e1rm||mejorE.v>p.e1rm.v+1e-9)){
+        p.hist.push({fecha:s.fecha,primera:!p.e1rm,txt:"1RM est. "+fN(mejorE.v)+" kg ("+fN(mejorE.kg,2)+" kg × "+fN(mejorE.reps,0)+")"});
+        p.e1rm={v:mejorE.v,kg:mejorE.kg,reps:mejorE.reps,fecha:s.fecha};nuevo=true;
+      }
+      if(mejorP&&(!p.peso||mejorP.kg>p.peso.kg||(mejorP.kg===p.peso.kg&&mejorP.reps>p.peso.reps))){p.peso={kg:mejorP.kg,reps:mejorP.reps,fecha:s.fecha};nuevo=true;}
+      if(mejorR&&(!p.reps||mejorR.v>p.reps.v)){
+        if(!mejorE)p.hist.push({fecha:s.fecha,primera:!p.reps,txt:fN(mejorR.v,0)+" repeticiones"});
+        p.reps={v:mejorR.v,kg:mejorR.kg,fecha:s.fecha};nuevo=true;
+      }
+      if(nuevo)p.ultima=s.fecha;
+    });
+  });
+  return Object.keys(por).map(function(k){return por[k];}).sort(function(a,b){return b.ultima.localeCompare(a.ultima)||a.nombre.localeCompare(b.nombre);});
+}
+function tilePR(k,v,u,d){return '<div class="tile" style="cursor:default"><span class="k">'+k+'</span><span class="v">'+v+'<small>'+u+'</small></span><span class="d">'+d+'</span></div>';}
+function vPRs(){
+  var lista=calcularPRs(),limite=sumarDias(hoy(),-14);
+  var h='<div class="head"><h1>PRs</h1><p class="lead">Tus récords personales: tu mejor marca en cada ejercicio, con todo tu historial.</p></div>';
+  if(!lista.length)return h+'<div class="empty"><strong>Aún no hay récords.</strong><span>Guarda tu primera sesión en Entreno y aquí verás tu mejor marca de cada ejercicio.</span></div>';
+  var ev=[];
+  lista.forEach(function(l){l.hist.forEach(function(x){if(!x.primera)ev.push({n:l.nombre,fecha:x.fecha,txt:x.txt});});});
+  ev.sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+  if(ev.length)h+='<section class="panel"><h2>Últimos récords</h2><ul class="hist" style="font-size:15px">'+ev.slice(0,5).map(function(x){return '<li><span>'+fF(x.fecha,true)+'</span><span><b>'+esc(x.n)+'</b> · '+esc(x.txt)+'</span></li>';}).join("")+'</ul></section>';
+  lista.forEach(function(l){
+    var t="";
+    if(l.e1rm)t+=tilePR("1RM estimado",fN(l.e1rm.v),"kg",esc(fN(l.e1rm.kg,2)+" kg × "+fN(l.e1rm.reps,0))+" · "+fF(l.e1rm.fecha,true));
+    if(l.peso)t+=tilePR("Más peso",fN(l.peso.kg,2),"kg","× "+fN(l.peso.reps,0)+" · "+fF(l.peso.fecha,true));
+    if(l.reps)t+=tilePR("Más repeticiones",fN(l.reps.v,0),"",(l.reps.kg?esc(fN(l.reps.kg,2))+" kg · ":"")+fF(l.reps.fecha,true));
+    h+='<section class="panel"><div class="row" style="justify-content:space-between"><h2>'+esc(l.nombre)+'</h2>'+(l.ultima>=limite?'<span class="badge-pr">Reciente</span>':'')+'</div><div class="tiles">'+t+'</div>'+
+      '<details><summary>Cómo ha evolucionado ('+l.hist.length+')</summary><ul class="hist">'+l.hist.slice().reverse().map(function(x){return '<li><span>'+fF(x.fecha,true)+'</span><span>'+(x.primera?"Primera marca · ":"")+esc(x.txt)+'</span></li>';}).join("")+'</ul></details></section>';
+  });
   return h;
 }
 function blobADataUrl(b){return new Promise(function(res,rej){var f=new FileReader();f.onload=function(){res(f.result);};f.onerror=rej;f.readAsDataURL(b);});}
@@ -523,7 +641,7 @@ function importar(file){
     var o=JSON.parse(t),e=o&&o.estado,obj=function(x){return x&&typeof x==="object"&&!Array.isArray(x);};
     if(!o||o.app!=="entreno"||!obj(e))throw 0;
     nuevo={
-      rutinas:Array.isArray(e.rutinas)?e.rutinas:[],
+      rutinas:unicaActiva(Array.isArray(e.rutinas)?e.rutinas:[]),
       sesiones:obj(e.sesiones)?e.sesiones:{},
       mediciones:obj(e.mediciones)?e.mediciones:{},
       metricas:asegurarMetricas(Array.isArray(e.metricas)&&e.metricas.length?e.metricas:DEF_METRICAS),
@@ -730,10 +848,10 @@ function vDieta(){
 function render(){
   UI.info=null;UI.zona=null;
   document.querySelectorAll("nav button").forEach(function(b){if(b.dataset.tab===UI.tab)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
-  view.innerHTML=({actual:vActual,historial:vHistorial,progreso:vProgreso,dieta:vDieta})[UI.tab]();
+  view.innerHTML=({actual:vActual,historial:vHistorial,prs:vPRs,progreso:vProgreso,dieta:vDieta})[UI.tab]();
   cargarFotos();
 }
-function ir(t){UI.tab=t;UI.confirm=null;render();window.scrollTo(0,0);try{localStorage.setItem("tab",t);}catch(e){}}
+function ir(t){UI.tab=t;UI.confirm=null;UI.activar=null;render();window.scrollTo(0,0);try{localStorage.setItem("tab",t);}catch(e){}}
 document.querySelector("nav").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)ir(b.dataset.tab);});
 
 view.addEventListener("input",function(e){
@@ -743,6 +861,11 @@ view.addEventListener("input",function(e){
   else if(t.dataset.med){UI.med.valores[t.dataset.med]=t.value;UI.med.dirty=true;}
   else if(t.id==="med-notas"){UI.med.notas=t.value;UI.med.dirty=true;}
   else if(t.id==="ed-texto")UI.editor.texto=t.value;
+  else if(t.id==="act-sem"&&UI.activar){
+    UI.activar.semanas=t.value;
+    var rr=S.rutinas.filter(function(q){return q.id===UI.activar.id;})[0],fin=$("#act-fin");
+    if(rr&&fin)fin.textContent=textoFin(rr);
+  }
   else if(t.id==="dieta-texto")UI.dietaEd=t.value;
 });
 view.addEventListener("change",function(e){
@@ -768,18 +891,23 @@ view.addEventListener("click",function(e){
   else if(act==="save-ses")guardarSesion();
   else if(act==="ed-nueva"){
     if(hayBorradores(r)){toast("Tienes cambios sin guardar en la sesión. Guárdala antes de crear otra rutina.");return;}
-    UI.editor={modo:"nueva",texto:AYUDA_RUTINA};render();window.scrollTo(0,0);}
-  else if(act==="ed-editar"&&r){UI.editor={modo:"editar",texto:aTexto(r)};render();window.scrollTo(0,0);}
+    UI.editor={modo:"nueva",tab:"actual",texto:AYUDA_RUTINA};render();window.scrollTo(0,0);}
+  else if(act==="ed-editar"&&r){UI.editor={modo:"editar",tab:"actual",texto:aTexto(r)};render();window.scrollTo(0,0);}
   else if(act==="ed-ok")guardarRutina();
   else if(act==="ed-no"){UI.editor=null;render();}
   else if(act==="ask"){UI.confirm=b.dataset.key;render();}
   else if(act==="cancel"){UI.confirm=null;render();}
   else if(act==="do-del")borrar(b.dataset.key);
-  else if(act==="reactivar"){
-    var x=S.rutinas.filter(function(q){return q.id===b.dataset.id;})[0],act2=rutinaActiva();
-    if(hayBorradores(act2)){toast("Tienes cambios sin guardar en la sesión. Guárdala antes de cambiar de rutina.");return;}
-    if(x){if(act2){act2.estado="archivada";act2.fin=act2.fin||hoy();}x.estado="activa";x.fin="";UI.dia=0;guardar().then(function(){toast("Rutina activada");ir("actual");},render);}
+  else if(act==="activar"){
+    var x=S.rutinas.filter(function(q){return q.id===b.dataset.id;})[0];if(!x)return;
+    UI.activar={id:x.id,semanas:String(semanasTotales(x)||8),sinFin:x.estado==="activa"&&!x.finPrevisto};render();
   }
+  else if(act==="activar-no"){UI.activar=null;render();}
+  else if(act==="dur"&&UI.activar){var v=+b.dataset.v;if(v===0)UI.activar.sinFin=true;else{UI.activar.sinFin=false;UI.activar.semanas=String(v);}render();}
+  else if(act==="activar-ok")confirmarActivar();
+  else if(act==="ampliar"&&r){r.finPrevisto=sumarDias(hoy(),27);guardar().then(function(){toast("Rutina ampliada 4 semanas");},NADA).then(render);}
+  else if(act==="ir-anteriores")ir("historial");
+  else if(act==="ed-guardada"){UI.editor={modo:"guardada",tab:"historial",texto:AYUDA_RUTINA};render();window.scrollTo(0,0);}
   else if(act==="export")exportar();
   else if(act==="info")alternarInfo(b.dataset.k);
   else if(act==="info-x")cerrarInfo();

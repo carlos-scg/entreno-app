@@ -5,7 +5,8 @@ App gratuita para llevar el control de tu entrenamiento desde el móvil: anota p
 ## Qué incluye
 
 - **Entreno:** tu rutina por días. Para cada ejercicio ves lo que hiciste la última vez, la tendencia y el historial.
-- **Anteriores:** las rutinas que ya terminaste, con tus mejores marcas, y la copia de seguridad.
+- **Anteriores:** tu lista de rutinas. Añade las que quieras (escritas o desde un archivo), **activa una sola** y elige cuánto tiempo la vas a hacer (4, 6, 8 o 12 semanas, otra duración, o sin fecha de fin). En Entreno ves en qué semana vas y se te avisa cuando termina el plazo. Aquí también está la copia de seguridad.
+- **PRs:** tus récords personales: para cada ejercicio, tu mayor 1RM estimado, el máximo peso y las máximas repeticiones, y cómo han ido mejorando.
 - **Progreso:** peso, grasa, músculo, brazo, pecho, cintura, pierna (y las medidas que añadas tú), con gráficas y fotos.
 - **Dieta:** tu plan como texto, PDF o imagen.
 
