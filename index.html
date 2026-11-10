@@ -233,13 +233,18 @@ function cargarFotos(){
     tx("fotos","readonly",function(s){return s.get(id);}).then(function(b){if(b){urls[id]=URL.createObjectURL(b);img.src=urls[id];}}).catch(function(){});
   });
 }
+var MAX_FOTO=8*1024*1024,MAX_ARCHIVO=15*1024*1024;
 function reducir(file){
   return createImageBitmap(file).then(function(bmp){
     var k=Math.min(1,1400/Math.max(bmp.width,bmp.height)),c=document.createElement("canvas");
     c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
     c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
     return new Promise(function(res){c.toBlob(res,"image/jpeg",0.82);});
-  }).then(function(b){if(!b)throw 0;return b;}).catch(function(){return file;});
+  }).then(function(b){if(!b)throw 0;return b;}).catch(function(){
+    /* Si no se puede reducir, solo se guarda el original cuando es una imagen de tamaño razonable; si no, se rechaza. */
+    if(/^image\//.test(file.type)&&file.size<=MAX_FOTO)return file;
+    var e=new Error("foto");e.foto=file.name||"foto";throw e;
+  });
 }
 
 /* ---------- datos de entrenamiento ---------- */
@@ -406,6 +411,7 @@ function importarDieta(file){
   if(ext==="txt"||ext==="md"||ext==="csv"){
     p=file.text().then(function(t){S.dieta=t.replace(/^﻿/,"").trim();});
   }else if(ext==="pdf"||img){
+    if(file.size>MAX_ARCHIVO){toast("El archivo es demasiado grande (máximo 15 MB).");return;}
     nuevoId="d-"+uid();
     p=guardarFoto(nuevoId,file).then(function(){S.dietaArchivo={id:nuevoId,nombre:file.name||"dieta",tipo:img?"img":"pdf"};});
   }else{toast("Formato no admitido. Usa .txt, .md, .csv, PDF o una imagen.");return;}
@@ -823,7 +829,8 @@ function guardarMed(){
     quitar.forEach(borrarFoto);f.fotos=fotos;f.quitadas=[];f.dirty=false;f.key=null;toast("Medición guardada");
   },function(e){
     fotos.forEach(function(id){if(f.fotos.indexOf(id)<0)borrarFoto(id);});   /* fotos nuevas ya subidas que no llegaron a guardarse */
-    fallo("No se pudo guardar la medición.")(e);
+    if(e&&e.foto)toast("No se pudo procesar la foto «"+e.foto+"». Usa una imagen JPG o PNG de menos de 8 MB.");
+    else fallo("No se pudo guardar la medición.")(e);
   }).then(function(){busy=false;render();});
 }
 
