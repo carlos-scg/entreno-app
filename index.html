@@ -115,7 +115,7 @@ td.wrapcell{white-space:normal;min-width:10rem}
 /* Figura con los cuadros de medida a los lados (se colocan en porcentajes del lienzo). */
 .cuerpo-wrap{position:relative;width:100%;max-width:400px;margin:6px auto 0;aspect-ratio:380/430}
 .cuerpo-wrap>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.fig .cuerpo{fill:var(--fig)}.fig .miembro{stroke:var(--fig);fill:none;stroke-linecap:round}
+.fig .cuerpo{fill:var(--fig)}
 .zona .l{stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;fill:none}
 .zona .g{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:3 3;fill:none}
 .zona.on .l{stroke-width:6}
@@ -550,13 +550,13 @@ function importar(file){
    (lado "i" = izquierda, "d" = derecha) a la altura de cada línea de medida. La explicación solo se ve al pulsar la "i". */
 var GUIA=[
   {k:"pecho",n:"Pecho",lado:"i",y:112,t:"Rodea el pecho con la cinta a la altura de los pezones, horizontal por la espalda, con los brazos relajados y después de soltar el aire con normalidad.",
-   svg:'<line class="l" x1="146" y1="112" x2="238" y2="112"/><line class="g" x1="146" y1="112" x2="84" y2="112"/>'},
+   svg:'<line class="l" x1="148" y1="112" x2="236" y2="112"/><line class="g" x1="148" y1="112" x2="84" y2="112"/>'},
   {k:"cintura",n:"Cintura",lado:"i",y:196,t:"A la altura del ombligo, o en la parte más estrecha del abdomen. Mide tras soltar el aire con normalidad y sin meter tripa.",
-   svg:'<line class="l" x1="162" y1="196" x2="222" y2="196"/><line class="g" x1="162" y1="196" x2="84" y2="196"/>'},
+   svg:'<line class="l" x1="168" y1="196" x2="216" y2="196"/><line class="g" x1="168" y1="196" x2="84" y2="196"/>'},
   {k:"brazo",n:"Brazo",lado:"d",y:134,t:"Con el brazo relajado a lo largo del cuerpo, pon la cinta en el punto medio entre el hombro y el codo, sin apretar. Mide siempre el mismo brazo.",
-   svg:'<line class="l" x1="249.9" y1="141.4" x2="270.7" y2="134.2"/><line class="g" x1="270.7" y1="134.2" x2="298" y2="134"/>'},
+   svg:'<line class="l" x1="245.7" y1="142.8" x2="264.7" y2="136.4"/><line class="g" x1="264.7" y1="136.4" x2="298" y2="134"/>'},
   {k:"pierna",n:"Pierna",lado:"d",y:290,t:"De pie, con el peso repartido, pon la cinta en el punto medio del muslo, entre la ingle y la rodilla, bien horizontal. Mide siempre la misma pierna.",
-   svg:'<line class="l" x1="189" y1="290" x2="223" y2="290"/><line class="g" x1="223" y1="290" x2="298" y2="290"/>'}
+   svg:'<line class="l" x1="194" y1="290" x2="226" y2="290"/><line class="g" x1="226" y1="290" x2="298" y2="290"/>'}
 ];
 var NOTA_BASCULA="Mide por la mañana, en ayunas y después de ir al baño, siempre con la misma báscula y sin ropa. La hidratación cambia el resultado, así que repite las mismas condiciones.";
 function enFigura(k){return GUIA.some(function(z){return z.k===k;});}
@@ -568,13 +568,19 @@ function asegurarMetricas(lista){
 }
 function cuerpoHTML(f){
   var s='<svg class="fig'+(UI.zona?' hay':'')+'" viewBox="0 0 380 430" aria-hidden="true"><g transform="translate(72 0)">'+
-    '<g class="cuerpo"><circle cx="120" cy="38" r="24"/><rect x="109" y="58" width="22" height="22" rx="6"/>'+
-    '<path d="M72 84Q120 72 168 84L164 140Q158 170 150 200L148 244L92 244L90 200Q82 170 76 140Z"/>'+
-    '<ellipse cx="100" cy="418" rx="17" ry="6"/><ellipse cx="140" cy="418" rx="17" ry="6"/></g>'+
-    '<g class="miembro"><path d="M66 96L40 172" stroke-width="20"/><path d="M40 172L30 236" stroke-width="16"/>'+
-    '<path d="M174 96L200 172" stroke-width="20"/><path d="M200 172L210 236" stroke-width="16"/>'+
-    '<path d="M108 244L104 332" stroke-width="34"/><path d="M104 332L102 412" stroke-width="24"/>'+
-    '<path d="M132 244L136 332" stroke-width="34"/><path d="M136 332L138 412" stroke-width="24"/></g></g>'+
+    '<g class="cuerpo">'+
+    /* cabeza, orejas y cuello */
+    '<ellipse cx="120" cy="38" rx="17" ry="22"/><ellipse cx="102.5" cy="40" rx="3.5" ry="7"/><ellipse cx="137.5" cy="40" rx="3.5" ry="7"/>'+
+    '<path d="M109 54L109 84Q120 90 131 84L131 54Z"/>'+
+    /* torso: trapecios, hombros, pecho que se estrecha hasta la cintura y caderas */
+    '<path d="M108 78C96 82 80 84 70 92C64 97 64 106 68 114C72 128 76 140 82 156C88 172 94 184 96 196C96 214 88 232 88 252L152 252C152 232 144 214 144 196C146 184 152 172 158 156C164 140 168 128 172 114C176 106 176 97 170 92C160 84 144 82 132 78Z"/>'+
+    /* brazos con hombro, codo, antebrazo y mano (el izquierdo es el mismo trazo reflejado) */
+    '<path d="M180 96Q193 126 203 169Q209 182 209 194L212 231Q216 246 214 256Q212 268 207 266Q202 262 201 252L200 233Q192 210 189 198L185 175Q172 148 160 104Z"/>'+
+    '<path d="M180 96Q193 126 203 169Q209 182 209 194L212 231Q216 246 214 256Q212 268 207 266Q202 262 201 252L200 233Q192 210 189 198L185 175Q172 148 160 104Z" transform="translate(240 0) scale(-1 1)"/>'+
+    /* piernas con muslo, rodilla, pantorrilla y pie (la izquierda es la derecha reflejada) */
+    '<path d="M120 258C122 290 124 320 124 344C126 362 126 384 123 404L122 424Q122 430 128 430L140 430Q146 429 143 422L138 404C146 382 148 360 148 344C154 316 156 280 152 246L120 246Z"/>'+
+    '<path d="M120 258C122 290 124 320 124 344C126 362 126 384 123 404L122 424Q122 430 128 430L140 430Q146 429 143 422L138 404C146 382 148 360 148 344C154 316 156 280 152 246L120 246Z" transform="translate(240 0) scale(-1 1)"/>'+
+    '</g></g>'+
     GUIA.map(function(z){return '<g class="zona'+(UI.zona===z.k?' on':'')+'" data-zona="'+z.k+'">'+z.svg+'</g>';}).join("")+'</svg>';
   var campos=GUIA.map(function(z){
     var left=(z.lado==="i"?46:334)/380*100,top=z.y/430*100;
