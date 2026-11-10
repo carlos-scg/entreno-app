@@ -1,6 +1,6 @@
 /* Service worker: deja la app disponible sin conexión.
    Sube el número de VERSION cuando cambies index.html para que los móviles se actualicen. */
-var VERSION = "entreno-v8";
+var VERSION = "entreno-v9";
 var ARCHIVOS = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", function (e) {

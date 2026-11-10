@@ -193,9 +193,14 @@ function tx(store,mode,fn){
     t.oncomplete=function(){res(r&&r.result);};t.onerror=t.onabort=function(){rej(t.error);};
   });
 }
+/* `persistido` es el último estado que se guardó con éxito. Si un guardado falla, S vuelve a él:
+   así la memoria nunca queda con cambios que no están en el almacenamiento. */
+var persistido=null;
 function guardar(){
   if(memoria)return Promise.resolve();
-  return tx("kv","readwrite",function(s){return s.put(JSON.stringify(S),"estado");}).catch(function(){
+  var json=JSON.stringify(S);
+  return tx("kv","readwrite",function(s){return s.put(json,"estado");}).then(function(){persistido=json;},function(){
+    if(persistido!=null)Object.assign(S,JSON.parse(persistido));
     toast("No se pudo guardar. Haz una copia de seguridad.");
     var e=new Error("guardado");e.guardado=true;throw e;
   });
@@ -208,6 +213,7 @@ function hayBorradores(r){return !!r&&Object.keys(UI.drafts).some(function(k){re
 function cargar(){
   return tx("kv","readonly",function(s){return s.get("estado");}).then(function(v){
     if(v){try{var o=JSON.parse(v);S.rutinas=o.rutinas||[];S.sesiones=o.sesiones||{};S.mediciones=o.mediciones||{};S.metricas=asegurarMetricas(o.metricas&&o.metricas.length?o.metricas:DEF_METRICAS);S.dieta=o.dieta||"";S.dietaArchivo=o.dietaArchivo||null;}catch(e){}}
+    persistido=JSON.stringify(S);
   });
 }
 function guardarFoto(id,blob){return tx("fotos","readwrite",function(s){return s.put(blob,id);});}
@@ -319,7 +325,7 @@ function guardarRutina(){
     S.rutinas.push({id:"r-"+uid(),nombre:p.nombre||"Rutina",estado:"activa",inicio:hoy(),fin:"",dias:p.dias});
     UI.dia=0;
   }
-  UI.editor=null;guardar().then(function(){toast("Rutina guardada");},NADA).then(render);
+  guardar().then(function(){UI.editor=null;toast("Rutina guardada");},NADA).then(render);
 }
 
 /* ---------- cargar rutina y dieta desde archivos ---------- */
@@ -386,14 +392,15 @@ function importarRutina(file){
 }
 function importarDieta(file){
   if(!file)return;
-  var ext=extension(file),img=/^image\//.test(file.type),p;
+  var ext=extension(file),img=/^image\//.test(file.type),p,nuevoId=null,prev=S.dietaArchivo;
   if(ext==="txt"||ext==="md"||ext==="csv"){
     p=file.text().then(function(t){S.dieta=t.replace(/^﻿/,"").trim();});
   }else if(ext==="pdf"||img){
-    var id="d-"+uid(),prev=S.dietaArchivo;
-    p=guardarFoto(id,file).then(function(){if(prev)borrarFoto(prev.id);S.dietaArchivo={id:id,nombre:file.name||"dieta",tipo:img?"img":"pdf"};});
+    nuevoId="d-"+uid();
+    p=guardarFoto(nuevoId,file).then(function(){S.dietaArchivo={id:nuevoId,nombre:file.name||"dieta",tipo:img?"img":"pdf"};});
   }else{toast("Formato no admitido. Usa .txt, .md, .csv, PDF o una imagen.");return;}
-  p.then(guardar).then(function(){toast("Dieta cargada");},fallo("No se pudo cargar la dieta.")).then(render);
+  /* El archivo anterior se borra solo cuando la referencia nueva ya está guardada; si falla, se borra el nuevo. */
+  p.then(guardar).then(function(){if(nuevoId&&prev)borrarFoto(prev.id);toast("Dieta cargada");},function(e){if(nuevoId)borrarFoto(nuevoId);fallo("No se pudo cargar la dieta.")(e);}).then(render);
 }
 function abrirArchivo(id){
   tx("fotos","readonly",function(s){return s.get(id);}).then(function(b){
@@ -467,8 +474,7 @@ function guardarSesion(){
   });
   if(!alguno&&!d.notas.trim()){toast("Anota al menos una serie antes de guardar.");return;}
   S.sesiones[d.key]={rutinaId:r.id,dia:diaId(r,UI.dia),diaNombre:(r.dias[UI.dia]||{}).nombre||"",fecha:UI.fecha,sets:sets,notas:d.notas.trim()};
-  d.dirty=false;d.existe=true;
-  guardar().then(function(){toast("Sesión guardada");},NADA).then(render);
+  guardar().then(function(){d.dirty=false;d.existe=true;toast("Sesión guardada");},NADA).then(render);
 }
 
 /* ---------- vista: anteriores + copia de seguridad ---------- */
@@ -504,9 +510,9 @@ function exportar(){
 }
 function importar(file){
   if(!file||busy)return;busy=true;
-  var nuevo=null;
-  /* Orden: 1) validar la copia, 2) convertir y guardar las fotos, 3) solo entonces sustituir S y
-     guardar; si ese último guardado falla, se devuelve S a como estaba. */
+  var nuevo=null,escritas=[];
+  /* Orden: 1) validar la copia, 2) convertir las fotos, 3) guardarlas con IDs nuevos (así no pisan ninguna foto actual),
+     4) solo entonces sustituir S y guardar. Si algo falla se borran las fotos escritas y no cambia nada. */
   file.text().then(function(t){
     var o=JSON.parse(t),e=o&&o.estado,obj=function(x){return x&&typeof x==="object"&&!Array.isArray(x);};
     if(!o||o.app!=="entreno"||!obj(e))throw 0;
@@ -524,12 +530,19 @@ function importar(file){
       return dataUrlABlob(fotos[id]).then(function(b){return [id,b];});
     }));
   }).then(function(pares){
-    return pares.reduce(function(c,p){return c.then(function(){return guardarFoto(p[0],p[1]);});},Promise.resolve());
+    var mapa={};
+    pares.forEach(function(p,i){mapa[p[0]]="f-"+uid()+"-"+i;});
+    Object.keys(nuevo.mediciones).forEach(function(f){
+      var m=nuevo.mediciones[f];
+      if(!m||typeof m!=="object"||Array.isArray(m)){delete nuevo.mediciones[f];return;}
+      m.fotos=(Array.isArray(m.fotos)?m.fotos:[]).filter(function(id){return mapa[id];}).map(function(id){return mapa[id];});
+    });
+    if(nuevo.dietaArchivo)nuevo.dietaArchivo=mapa[nuevo.dietaArchivo.id]?Object.assign({},nuevo.dietaArchivo,{id:mapa[nuevo.dietaArchivo.id]}):null;
+    return pares.reduce(function(c,p){return c.then(function(){var id=mapa[p[0]];return guardarFoto(id,p[1]).then(function(){escritas.push(id);});});},Promise.resolve());
   }).then(function(){
-    var anterior=JSON.parse(JSON.stringify(S));
     Object.assign(S,nuevo);urls={};
-    return guardar().catch(function(err){Object.assign(S,anterior);throw err;});
-  }).then(function(){UI.drafts={};toast("Copia restaurada");},fallo("Ese archivo no es una copia válida. No se ha cambiado nada.")).then(function(){busy=false;render();});
+    return guardar();
+  }).then(function(){UI.drafts={};toast("Copia restaurada");},function(e){escritas.forEach(borrarFoto);fallo("Ese archivo no es una copia válida. No se ha cambiado nada.")(e);}).then(function(){busy=false;render();});
 }
 
 /* ---------- figura con las medidas y su ayuda ---------- */
@@ -677,7 +690,10 @@ function guardarMed(){
     return guardar();
   }).then(function(){
     quitar.forEach(borrarFoto);f.fotos=fotos;f.quitadas=[];f.dirty=false;f.key=null;toast("Medición guardada");
-  },fallo("No se pudo guardar la medición.")).then(function(){busy=false;render();});
+  },function(e){
+    fotos.forEach(function(id){if(f.fotos.indexOf(id)<0)borrarFoto(id);});   /* fotos nuevas ya subidas que no llegaron a guardarse */
+    fallo("No se pudo guardar la medición.")(e);
+  }).then(function(){busy=false;render();});
 }
 
 /* ---------- vista: dieta ---------- */
@@ -769,15 +785,15 @@ view.addEventListener("click",function(e){
   }
   else if(act==="dieta-ed"){UI.dietaEd=S.dieta;render();}
   else if(act==="dieta-no"){UI.dietaEd=null;render();}
-  else if(act==="dieta-ok"){S.dieta=(UI.dietaEd||"").trim();UI.dietaEd=null;guardar().then(function(){toast("Dieta guardada");},NADA).then(render);}
+  else if(act==="dieta-ok"){S.dieta=(UI.dietaEd||"").trim();guardar().then(function(){UI.dietaEd=null;toast("Dieta guardada");},NADA).then(render);}
 });
 function borrar(key){
-  var p;
+  var fotos=[];   /* las fotos se borran solo cuando el estado ya se ha guardado sin ellas */
   if(key==="ses"){var r=rutinaActiva();if(!r)return;var k=draftDe(r).key;delete S.sesiones[k];delete UI.drafts[k];}
-  else if(key.indexOf("med:")===0){var f=key.slice(4),m=S.mediciones[f];if(m&&m.fotos)m.fotos.forEach(borrarFoto);delete S.mediciones[f];UI.med.key=null;}
-  else if(key==="dieta-archivo"){if(S.dietaArchivo)borrarFoto(S.dietaArchivo.id);S.dietaArchivo=null;}
+  else if(key.indexOf("med:")===0){var f=key.slice(4),m=S.mediciones[f];if(m&&m.fotos)fotos=m.fotos.slice();delete S.mediciones[f];UI.med.key=null;}
+  else if(key==="dieta-archivo"){if(S.dietaArchivo)fotos=[S.dietaArchivo.id];S.dietaArchivo=null;}
   else if(key.indexOf("rut:")===0){var id=key.slice(4);S.rutinas=S.rutinas.filter(function(x){return x.id!==id;});Object.keys(S.sesiones).forEach(function(k2){if(S.sesiones[k2].rutinaId===id)delete S.sesiones[k2];});}
-  UI.confirm=null;guardar().then(function(){toast("Borrado");},NADA).then(render);
+  UI.confirm=null;guardar().then(function(){fotos.forEach(borrarFoto);toast("Borrado");},NADA).then(render);
 }
 
 /* ---------- arranque ---------- */
