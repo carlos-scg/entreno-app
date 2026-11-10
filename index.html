@@ -112,22 +112,27 @@ td.wrapcell{white-space:normal;min-width:10rem}
 .help{font-size:13.5px;color:var(--muted);background:var(--bg);border-radius:10px;padding:10px 12px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px);text-align:center}
 /* Guía de medidas: figura a la izquierda, instrucciones a la derecha (apiladas en móvil estrecho). */
-.guia{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:16px;align-items:start;margin-top:10px}
-.guia .fig{width:100%;max-width:230px;height:auto;display:block}
-.guia ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
-.guia li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:start;padding:10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;text-align:left}
-.guia li.on{background:var(--accent-soft);border-color:var(--accent)}
-.guia li .nb{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
-.guia li b{display:block;font-size:15px}.guia li span.tx{display:block;color:var(--muted);font-size:14px}
+/* Figura con los cuadros de medida a los lados (se colocan en porcentajes del lienzo). */
+.cuerpo-wrap{position:relative;width:100%;max-width:400px;margin:6px auto 0;aspect-ratio:380/430}
+.cuerpo-wrap>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fig .cuerpo{fill:var(--fig)}.fig .miembro{stroke:var(--fig);fill:none;stroke-linecap:round}
 .zona .l{stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;fill:none}
 .zona .g{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:3 3;fill:none}
-.zona .b{fill:var(--accent)}
-.zona .t{fill:var(--accent-ink);font:800 12px var(--body);text-anchor:middle}
 .zona.on .l{stroke-width:6}
-.zona.on .b{transform:scale(1.25);transform-box:fill-box;transform-origin:center}
 .fig.hay .zona:not(.on){opacity:.3}
-.fig .cuerpo{fill:var(--fig)}.fig .miembro{stroke:var(--fig);fill:none;stroke-linecap:round}
-@media (max-width:520px){.guia{grid-template-columns:1fr;justify-items:center}.guia ol{width:100%}}
+.mf{position:absolute;width:72px;transform:translate(-50%,-50%);display:flex;flex-direction:column;gap:3px;z-index:2}
+.mf .top{display:flex;align-items:center;justify-content:space-between;gap:2px}
+.mf label{font-size:13px;font-weight:700;color:var(--ink)}
+.mf input{width:100%;text-align:center;padding:9px 4px;font-weight:700;font-variant-numeric:tabular-nums}
+.ibtn{position:relative;flex:none;width:22px;height:22px;min-height:0;padding:0;border-radius:50%;border:1.5px solid var(--accent);background:var(--surface);color:var(--accent);font:italic 700 14px Georgia,"Times New Roman",serif;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.ibtn::after{content:"";position:absolute;inset:-10px}
+.ibtn[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink)}
+.pop{position:absolute;left:3%;right:3%;z-index:6;background:var(--surface);color:var(--ink);border:1.5px solid var(--accent);border-radius:12px;padding:12px 38px 12px 14px;box-shadow:0 10px 28px rgba(0,0,0,.28);font-size:14px;line-height:1.45}
+.pop b{display:block;margin-bottom:4px;font-size:15px}
+.pop .x{position:absolute;top:2px;right:2px;width:34px;height:34px;border:0;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+.otras{display:flex;align-items:center;gap:8px;margin-top:4px}
+.otras b{font-size:15px}
+.nota-info{background:var(--accent-soft);border-radius:10px;padding:10px 12px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -152,7 +157,7 @@ var DEF_METRICAS=[
 ];
 var AYUDA_RUTINA="# Nombre de la rutina\n\n## Día 1 · Empuje\nPress banca | 4 | 6-8 | 2 min\nPress militar | 3 | 8-10 | 90 s | Con mancuernas\n\n## Día 2 · Tirón\nDominadas | 4 | 6-10 | 2 min";
 var idb=null,S={rutinas:[],sesiones:{},mediciones:{},metricas:DEF_METRICAS,dieta:"",dietaArchivo:null};
-var UI={tab:"actual",guia:null,zona:null,dia:0,fecha:hoy(),drafts:{},metrica:null,confirm:null,editor:null,dietaEd:null,nuevaMedida:false,
+var UI={tab:"actual",info:null,zona:null,dia:0,fecha:hoy(),drafts:{},metrica:null,confirm:null,editor:null,dietaEd:null,nuevaMedida:false,
   med:{fecha:hoy(),valores:{},notas:"",fotos:[],quitadas:[],key:null,dirty:false}};
 var view=document.getElementById("view"),urls={},busy=false,toastTimer=null,memoria=false;
 
@@ -202,7 +207,7 @@ function fallo(msg){return function(e){if(!(e&&e.guardado))toast(msg);};}
 function hayBorradores(r){return !!r&&Object.keys(UI.drafts).some(function(k){return k.indexOf(r.id+"_")===0&&UI.drafts[k].dirty;});}
 function cargar(){
   return tx("kv","readonly",function(s){return s.get("estado");}).then(function(v){
-    if(v){try{var o=JSON.parse(v);S.rutinas=o.rutinas||[];S.sesiones=o.sesiones||{};S.mediciones=o.mediciones||{};S.metricas=o.metricas&&o.metricas.length?o.metricas:DEF_METRICAS;S.dieta=o.dieta||"";S.dietaArchivo=o.dietaArchivo||null;}catch(e){}}
+    if(v){try{var o=JSON.parse(v);S.rutinas=o.rutinas||[];S.sesiones=o.sesiones||{};S.mediciones=o.mediciones||{};S.metricas=asegurarMetricas(o.metricas&&o.metricas.length?o.metricas:DEF_METRICAS);S.dieta=o.dieta||"";S.dietaArchivo=o.dietaArchivo||null;}catch(e){}}
   });
 }
 function guardarFoto(id,blob){return tx("fotos","readwrite",function(s){return s.put(blob,id);});}
@@ -509,7 +514,7 @@ function importar(file){
       rutinas:Array.isArray(e.rutinas)?e.rutinas:[],
       sesiones:obj(e.sesiones)?e.sesiones:{},
       mediciones:obj(e.mediciones)?e.mediciones:{},
-      metricas:Array.isArray(e.metricas)&&e.metricas.length?e.metricas:DEF_METRICAS,
+      metricas:asegurarMetricas(Array.isArray(e.metricas)&&e.metricas.length?e.metricas:DEF_METRICAS),
       dieta:typeof e.dieta==="string"?e.dieta:"",
       dietaArchivo:obj(e.dietaArchivo)?e.dietaArchivo:null
     };
@@ -527,39 +532,69 @@ function importar(file){
   }).then(function(){UI.drafts={};toast("Copia restaurada");},fallo("Ese archivo no es una copia válida. No se ha cambiado nada.")).then(function(){busy=false;render();});
 }
 
-/* ---------- guía visual de medidas ---------- */
+/* ---------- figura con las medidas y su ayuda ---------- */
+/* Lienzo de 380 × 430. La figura va centrada; los cuadros para escribir los cm se colocan en columnas a los lados
+   (lado "i" = izquierda, "d" = derecha) a la altura de cada línea de medida. La explicación solo se ve al pulsar la "i". */
 var GUIA=[
-  {k:"brazo",n:"Brazo",t:"Con el brazo relajado a lo largo del cuerpo, pon la cinta en el punto medio entre el hombro y el codo, sin apretar. Mide siempre el mismo brazo.",
-   svg:'<line class="l" x1="177.9" y1="141.4" x2="198.7" y2="134.2"/><line class="g" x1="198.7" y1="134.2" x2="216" y2="134"/><circle class="b" cx="226" cy="134" r="10"/><text class="t" x="226" y="138">1</text>'},
-  {k:"pecho",n:"Pecho",t:"Rodea el pecho con la cinta a la altura de los pezones, horizontal por la espalda, con los brazos relajados y después de soltar el aire con normalidad.",
-   svg:'<line class="l" x1="74" y1="112" x2="166" y2="112"/><line class="g" x1="166" y1="112" x2="216" y2="112"/><circle class="b" cx="226" cy="112" r="10"/><text class="t" x="226" y="116">2</text>'},
-  {k:"cintura",n:"Cintura",t:"A la altura del ombligo, o en la parte más estrecha del abdomen. Mide tras soltar el aire con normalidad y sin meter tripa.",
-   svg:'<line class="l" x1="90" y1="196" x2="150" y2="196"/><line class="g" x1="150" y1="196" x2="216" y2="196"/><circle class="b" cx="226" cy="196" r="10"/><text class="t" x="226" y="200">3</text>'},
-  {k:"pierna",n:"Pierna",t:"De pie, con el peso repartido, pon la cinta en el punto medio del muslo, entre la ingle y la rodilla, bien horizontal. Mide siempre la misma pierna.",
-   svg:'<line class="l" x1="117" y1="290" x2="151" y2="290"/><line class="g" x1="151" y1="290" x2="216" y2="290"/><circle class="b" cx="226" cy="290" r="10"/><text class="t" x="226" y="294">4</text>'}
+  {k:"pecho",n:"Pecho",lado:"i",y:112,t:"Rodea el pecho con la cinta a la altura de los pezones, horizontal por la espalda, con los brazos relajados y después de soltar el aire con normalidad.",
+   svg:'<line class="l" x1="146" y1="112" x2="238" y2="112"/><line class="g" x1="146" y1="112" x2="84" y2="112"/>'},
+  {k:"cintura",n:"Cintura",lado:"i",y:196,t:"A la altura del ombligo, o en la parte más estrecha del abdomen. Mide tras soltar el aire con normalidad y sin meter tripa.",
+   svg:'<line class="l" x1="162" y1="196" x2="222" y2="196"/><line class="g" x1="162" y1="196" x2="84" y2="196"/>'},
+  {k:"brazo",n:"Brazo",lado:"d",y:134,t:"Con el brazo relajado a lo largo del cuerpo, pon la cinta en el punto medio entre el hombro y el codo, sin apretar. Mide siempre el mismo brazo.",
+   svg:'<line class="l" x1="249.9" y1="141.4" x2="270.7" y2="134.2"/><line class="g" x1="270.7" y1="134.2" x2="298" y2="134"/>'},
+  {k:"pierna",n:"Pierna",lado:"d",y:290,t:"De pie, con el peso repartido, pon la cinta en el punto medio del muslo, entre la ingle y la rodilla, bien horizontal. Mide siempre la misma pierna.",
+   svg:'<line class="l" x1="189" y1="290" x2="223" y2="290"/><line class="g" x1="223" y1="290" x2="298" y2="290"/>'}
 ];
-function guiaHTML(abierta){
-  var s='<svg class="fig'+(UI.zona?' hay':'')+'" viewBox="0 0 250 430" role="img" aria-label="Figura de un hombre de frente con los puntos donde tomar cada medida">'+
+var NOTA_BASCULA="Mide por la mañana, en ayunas y después de ir al baño, siempre con la misma báscula y sin ropa. La hidratación cambia el resultado, así que repite las mismas condiciones.";
+function enFigura(k){return GUIA.some(function(z){return z.k===k;});}
+/* La figura siempre muestra sus cuatro cuadros, así que esas medidas tienen que existir en la lista aunque una copia antigua no las traiga. */
+function asegurarMetricas(lista){
+  var out=lista.slice();
+  GUIA.forEach(function(z){if(!out.some(function(m){return m.k===z.k;}))out.push({k:z.k,n:z.n,u:"cm"});});
+  return out;
+}
+function cuerpoHTML(f){
+  var s='<svg class="fig'+(UI.zona?' hay':'')+'" viewBox="0 0 380 430" aria-hidden="true"><g transform="translate(72 0)">'+
     '<g class="cuerpo"><circle cx="120" cy="38" r="24"/><rect x="109" y="58" width="22" height="22" rx="6"/>'+
     '<path d="M72 84Q120 72 168 84L164 140Q158 170 150 200L148 244L92 244L90 200Q82 170 76 140Z"/>'+
     '<ellipse cx="100" cy="418" rx="17" ry="6"/><ellipse cx="140" cy="418" rx="17" ry="6"/></g>'+
     '<g class="miembro"><path d="M66 96L40 172" stroke-width="20"/><path d="M40 172L30 236" stroke-width="16"/>'+
     '<path d="M174 96L200 172" stroke-width="20"/><path d="M200 172L210 236" stroke-width="16"/>'+
     '<path d="M108 244L104 332" stroke-width="34"/><path d="M104 332L102 412" stroke-width="24"/>'+
-    '<path d="M132 244L136 332" stroke-width="34"/><path d="M136 332L138 412" stroke-width="24"/></g>'+
+    '<path d="M132 244L136 332" stroke-width="34"/><path d="M136 332L138 412" stroke-width="24"/></g></g>'+
     GUIA.map(function(z){return '<g class="zona'+(UI.zona===z.k?' on':'')+'" data-zona="'+z.k+'">'+z.svg+'</g>';}).join("")+'</svg>';
-  var l='<ol>'+GUIA.map(function(z,i){
-    return '<li class="'+(UI.zona===z.k?'on':'')+'" data-act="zona" data-k="'+z.k+'" data-zona="'+z.k+'" role="button" tabindex="0"><span class="nb">'+(i+1)+'</span><div><b>'+z.n+'</b><span class="tx">'+esc(z.t)+'</span></div></li>';
-  }).join("")+'</ol>';
-  return '<details class="panel" id="guia"'+(abierta?' open':'')+'><summary style="font-weight:700;color:var(--ink);font-size:16px">Cómo tomar las medidas</summary>'+
-    '<div class="guia">'+s+'<div style="display:flex;flex-direction:column;gap:12px;min-width:0">'+l+
-    '<p class="meta"><b>Peso, grasa y músculo:</b> por la mañana, en ayunas y después de ir al baño, siempre con la misma báscula y sin ropa. La hidratación cambia el resultado, así que repite las mismas condiciones.</p></div></div></details>';
+  var campos=GUIA.map(function(z){
+    var left=(z.lado==="i"?46:334)/380*100,top=z.y/430*100;
+    return '<div class="mf" style="left:'+left.toFixed(2)+'%;top:'+top.toFixed(2)+'%"><div class="top"><label for="med-'+z.k+'">'+z.n+'</label>'+
+      '<button type="button" class="ibtn" data-act="info" data-k="'+z.k+'" aria-label="Cómo medir: '+z.n.toLowerCase()+'" aria-expanded="false">i</button></div>'+
+      '<input type="text" inputmode="decimal" autocomplete="off" id="med-'+z.k+'" data-med="'+z.k+'" placeholder="cm" value="'+esc(f.valores[z.k]||"")+'"></div>';
+  }).join("");
+  var pops=GUIA.map(function(z){
+    var pos=z.y<240?'top:'+((z.y+36)/430*100).toFixed(1)+'%':'bottom:'+((430-z.y+36)/430*100).toFixed(1)+'%';
+    return '<div class="pop" id="info-'+z.k+'" role="dialog" aria-label="Cómo medir: '+z.n.toLowerCase()+'" style="'+pos+'" hidden>'+
+      '<button type="button" class="x" data-act="info-x" aria-label="Cerrar">×</button><b>Cómo medir: '+z.n.toLowerCase()+'</b><span>'+esc(z.t)+'</span></div>';
+  }).join("");
+  return '<div class="cuerpo-wrap">'+s+campos+pops+'</div>';
 }
 function marcarZona(k){
   UI.zona=k||null;
-  var g=$("#guia");if(!g)return;
+  var g=$(".cuerpo-wrap");if(!g)return;
   g.querySelectorAll("[data-zona]").forEach(function(el){el.classList.toggle("on",el.dataset.zona===UI.zona);});
   var f=g.querySelector(".fig");if(f)f.classList.toggle("hay",!!UI.zona);
+}
+function cerrarInfo(){
+  if(!UI.info)return;
+  view.querySelectorAll(".pop,.nota-info").forEach(function(p){p.hidden=true;});
+  view.querySelectorAll('.ibtn[aria-expanded="true"]').forEach(function(b){b.setAttribute("aria-expanded","false");});
+  UI.info=null;marcarZona(null);
+}
+function alternarInfo(k){
+  var p=$("#info-"+k),abrir=!!p&&p.hidden;
+  cerrarInfo();
+  if(!p||!abrir)return;
+  p.hidden=false;UI.info=k;
+  var b=view.querySelector('.ibtn[data-k="'+k+'"]');if(b)b.setAttribute("aria-expanded","true");
+  if(enFigura(k))marcarZona(k);
 }
 
 /* ---------- vista: progreso ---------- */
@@ -606,10 +641,12 @@ function vProgreso(){
     var sel=M.filter(function(m){return m.k===UI.metrica;})[0];
     h+='<section class="panel"><h2>'+esc(sel.n)+'</h2><div class="chart">'+chart(serieM(sel.k),sel.u)+'</div></section>';
   }
-  h+=guiaHTML(UI.guia===null?!all.length:UI.guia);
   h+='<form class="panel" id="f-med"><h2>Anotar medición</h2><label class="f" style="max-width:190px">Fecha<input type="date" id="med-fecha" value="'+esc(f.fecha)+'" max="'+hoy()+'" required></label>'+
     (S.mediciones[f.fecha]?'<p class="meta">Ya hay una medición de este día: al guardar se actualizará.</p>':'')+
-    '<div class="grid-m">'+M.map(function(m){return '<label class="f"><span>'+esc(m.n)+' <span class="u">('+esc(m.u)+')</span></span><input type="text" inputmode="decimal" autocomplete="off" data-med="'+esc(m.k)+'" value="'+esc(f.valores[m.k]||"")+'"></label>';}).join("")+'</div>';
+    cuerpoHTML(f)+
+    '<div class="otras"><b>Peso y otras medidas</b><button type="button" class="ibtn" data-act="info" data-k="bascula" aria-label="Cómo pesarte" aria-expanded="false">i</button></div>'+
+    '<p class="meta nota-info" id="info-bascula" hidden>'+esc(NOTA_BASCULA)+'</p>'+
+    '<div class="grid-m">'+M.filter(function(m){return !enFigura(m.k);}).map(function(m){return '<label class="f"><span>'+esc(m.n)+' <span class="u">('+esc(m.u)+')</span></span><input type="text" inputmode="decimal" autocomplete="off" data-med="'+esc(m.k)+'" value="'+esc(f.valores[m.k]||"")+'"></label>';}).join("")+'</div>';
   if(UI.nuevaMedida)h+='<div class="grid-m"><label class="f">Nombre de la medida<input type="text" id="nm-nombre" placeholder="Ej.: Hombros"></label><label class="f">Unidad<input type="text" id="nm-unidad" placeholder="cm" value="cm"></label></div><div class="row"><button type="button" class="btn sm primary" data-act="nm-ok">Añadir medida</button><button type="button" class="btn sm ghost" data-act="nm-no">Cancelar</button></div>';
   else h+='<div><button type="button" class="btn sm ghost" data-act="nm">+ Añadir otra medida</button></div>';
   if(f.fotos.length)h+='<div class="fotos">'+f.fotos.map(function(id){return '<div class="ph">'+imgFoto(id,"Foto guardada")+'<button type="button" class="btn sm" data-act="quitar-foto" data-id="'+esc(id)+'">Quitar</button></div>';}).join("")+'</div>';
@@ -662,6 +699,7 @@ function vDieta(){
 
 /* ---------- render y eventos ---------- */
 function render(){
+  UI.info=null;UI.zona=null;
   document.querySelectorAll("nav button").forEach(function(b){if(b.dataset.tab===UI.tab)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
   view.innerHTML=({actual:vActual,historial:vHistorial,progreso:vProgreso,dieta:vDieta})[UI.tab]();
   cargarFotos();
@@ -686,10 +724,11 @@ view.addEventListener("change",function(e){
   if(t.id==="rut-file"){importarRutina(t.files[0]);t.value="";}
   if(t.id==="dieta-file"){importarDieta(t.files[0]);t.value="";}
 });
-view.addEventListener("focusin",function(e){var k=e.target.dataset&&e.target.dataset.med;if(k&&GUIA.some(function(z){return z.k===k;}))marcarZona(k);});
-view.addEventListener("focusout",function(e){if(e.target.dataset&&e.target.dataset.med)marcarZona(null);});
-view.addEventListener("toggle",function(e){if(e.target.id==="guia")UI.guia=e.target.open;},true);
-view.addEventListener("keydown",function(e){var li=e.target.closest&&e.target.closest("li[data-act=zona]");if(li&&(e.key==="Enter"||e.key===" ")){e.preventDefault();li.click();}});
+view.addEventListener("focusin",function(e){var k=e.target.dataset&&e.target.dataset.med;if(k&&enFigura(k)&&!UI.info)marcarZona(k);});
+view.addEventListener("focusout",function(e){if(e.target.dataset&&e.target.dataset.med&&!UI.info)marcarZona(null);});
+/* Un toque fuera de la ayuda (o Escape) la cierra. */
+view.addEventListener("click",function(e){if(!e.target.closest(".pop,.ibtn"))cerrarInfo();},true);
+document.addEventListener("keydown",function(e){if(e.key==="Escape")cerrarInfo();});
 view.addEventListener("submit",function(e){e.preventDefault();if(e.target.id==="f-med")guardarMed();});
 view.addEventListener("click",function(e){
   var b=e.target.closest("[data-act]");if(!b)return;
@@ -713,7 +752,8 @@ view.addEventListener("click",function(e){
     if(x){if(act2){act2.estado="archivada";act2.fin=act2.fin||hoy();}x.estado="activa";x.fin="";UI.dia=0;guardar().then(function(){toast("Rutina activada");ir("actual");},render);}
   }
   else if(act==="export")exportar();
-  else if(act==="zona")marcarZona(b.dataset.k===UI.zona?null:b.dataset.k);
+  else if(act==="info")alternarInfo(b.dataset.k);
+  else if(act==="info-x")cerrarInfo();
   else if(act==="plantilla")guardarArchivo(new File([AYUDA_RUTINA+"\n"],"plantilla-rutina.txt",{type:"text/plain"})).catch(function(){toast("No se pudo descargar la plantilla.");});
   else if(act==="abrir-archivo")abrirArchivo(b.dataset.id);
   else if(act==="metrica"){UI.metrica=b.dataset.k;render();}
