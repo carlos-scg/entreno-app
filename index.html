@@ -171,7 +171,12 @@ function fF(iso,corto){
   var o={day:"numeric",month:"short"};if(!corto||d.getFullYear()!==new Date().getFullYear())o.year="numeric";
   return d.toLocaleDateString("es-ES",o);
 }
-function num(v){var t=String(v==null?"":v).trim().replace(",",".");if(t==="")return null;var n=parseFloat(t);return isFinite(n)?n:null;}
+/* Un número válido son solo cifras con una coma o un punto decimal (sin signos ni letras). Los callers comprueban
+   malNum() antes de guardar para avisar en vez de guardar algo distinto de lo escrito. */
+var RE_NUM=/^(\d+([.,]\d+)?|[.,]\d+)$/;
+function num(v){var t=String(v==null?"":v).trim();if(t==="")return null;return RE_NUM.test(t)?parseFloat(t.replace(",",".")):null;}
+function malNum(v){var t=String(v==null?"":v).trim();return t!==""&&!RE_NUM.test(t);}
+var AVISO_NUM="Hay un valor que no es un número. Usa solo cifras y coma o punto decimal.";
 function fN(n,dec){return Number(n).toLocaleString("es-ES",{maximumFractionDigits:dec==null?1:dec});}
 function sig(n,dec){return (n>0?"+":n<0?"−":"±")+fN(Math.abs(n),dec);}
 function slug(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");}
@@ -468,6 +473,7 @@ function vActual(){
 function guardarSesion(){
   var r=rutinaActiva();if(!r)return;
   var d=draftDe(r),sets={},alguno=false;
+  if(Object.keys(d.sets).some(function(ex){return d.sets[ex].some(function(s){return malNum(s.kg)||malNum(s.reps);});})){toast(AVISO_NUM);return;}
   Object.keys(d.sets).forEach(function(ex){
     var out=d.sets[ex].map(function(s){return {kg:num(s.kg),reps:num(s.reps)};}).filter(lleno);
     if(out.length){sets[ex]=out;alguno=true;}
@@ -686,6 +692,7 @@ function vProgreso(){
 function guardarMed(){
   var f=UI.med,inp=$("#med-fotos"),files=inp?Array.prototype.slice.call(inp.files):[];
   if(busy)return;if(!f.fecha){toast("Indica la fecha.");return;}
+  if(S.metricas.some(function(m){return malNum(f.valores[m.k]);})){toast(AVISO_NUM);return;}
   var valores={};S.metricas.forEach(function(m){var n=num(f.valores[m.k]);if(n!=null)valores[m.k]=n;});
   if(!Object.keys(valores).length&&!files.length&&!f.fotos.length&&!f.notas.trim()){toast("Anota al menos una medida o una foto.");return;}
   busy=true;var fotos=f.fotos.slice(),quitar=f.quitadas.slice(),btn=$("#f-med button[type=submit]");if(btn){btn.disabled=true;btn.textContent=files.length?"Guardando fotos…":"Guardando…";}
